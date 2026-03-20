@@ -1,16 +1,16 @@
-# ASE Load Balancing Design
+# ASE Load Balancing Module Design
 
 ## Introduction
 
-This document defines the design of the Load Balancing subsystem in the ASE LLM gateway. Load Balancing is the second decision layer in the request path and is responsible for selecting which backend endpoint should execute a request whose target model has already been resolved.
+This document defines the design of the Load Balancing Module in the ASE Semantic Routing and Load Balancing architecture. The Load Balancing Module is the second decision stage in the request path and is responsible for selecting which backend endpoint should execute a request whose target model has already been resolved.
 
-This document is not a generic overview of traffic distribution. It is the governing design for the dispatch subsystem that receives an authoritative model decision from Semantic Routing, resolves the corresponding backend pool, and selects an execution target under runtime health, capacity, affinity, and reliability constraints.
+This document is not a generic overview of traffic distribution. It is the governing design for the execution-balancing module that receives an authoritative model decision from the Semantic Routing Module, resolves the corresponding backend pool, and selects an execution target under runtime health, capacity, affinity, and reliability constraints.
 
-Within the overall document set, this file defines instance-level dispatch only. Gateway-wide architecture is defined in `overview.md`, and model-level decision making is defined in `ASE_Semantic_routing.md`.
+Within the overall document set, this file defines instance-level dispatch only. System-wide architecture is defined in `architecture.md`, and model-level decision making is defined in `semantic_routing_module.md`.
 
 ## Background
 
-### Subsystem Problem
+### Module Problem
 
 Load Balancing solves the following problem:
 
@@ -20,17 +20,17 @@ This is an instance-selection problem, not a model-selection problem. The semant
 
 In production, this problem is complicated by partial endpoint failures, uneven request sizes, long-lived streaming requests, heterogeneous backends, administrative drain behavior, and inconsistent telemetry quality across serving systems.
 
-### Why This Layer Must Exist
+### Why This Module Must Exist
 
 Load Balancing exists because choosing where a request should execute is a different problem from choosing what model should execute it.
 
-Once the model is fixed, the system must reason about backend health, in-flight load, queue pressure, affinity, retries, redispatch, and recovery behavior. None of these concerns should require the subsystem to reinterpret prompt semantics or revise the model decision under normal operation.
+Once the model is fixed, the system must reason about backend health, in-flight load, queue pressure, affinity, retries, redispatch, and recovery behavior. None of these concerns should require the module to reinterpret prompt semantics or revise the model decision under normal operation.
 
-ASE therefore isolates Load Balancing as the layer that owns endpoint choice and runtime dispatch behavior. It must honor the model assignment it receives and operate within that constraint.
+ASE therefore isolates the Load Balancing Module as the module that owns endpoint choice and runtime dispatch behavior. It must honor the model assignment it receives and operate within that constraint.
 
 ### Design Objectives
 
-The subsystem is designed to achieve the following outcomes:
+The module is designed to achieve the following outcomes:
 
 - dispatch only to endpoints that are eligible to serve the selected model
 - route around unhealthy, overloaded, or administratively drained endpoints
@@ -41,11 +41,11 @@ The subsystem is designed to achieve the following outcomes:
 
 ### Governing Principles
 
-The subsystem follows five governing principles.
+The module follows five governing principles.
 
 First, Load Balancing is instance-centric, not model-centric. Second, health and eligibility must be evaluated before throughput optimization. Third, scheduling decisions should be based on explicit runtime state and declarative policy rather than hidden side effects. Fourth, retries and redispatch must be finite and observable. Fifth, affinity is a preference that improves locality, not an excuse to route to unhealthy endpoints.
 
-ASE aligns this layer with mature load-balancer practice. The scheduling vocabulary used by NGINX, the health and retry controls documented by HAProxy, and rich runtime metrics from systems such as vLLM provide the right conceptual foundation for the subsystem. See [R3], [R4], and [R5].
+ASE aligns this module with mature load-balancer practice. The scheduling vocabulary used by NGINX, the health and retry controls documented by HAProxy, and rich runtime metrics from systems such as vLLM provide the right conceptual foundation for the module. See [R3], [R4], and [R5].
 
 ## Scope
 
@@ -74,30 +74,30 @@ This document does not define:
 - semantic safety gating that belongs before model resolution
 - plugin logic tied to semantic decision making
 
-Those responsibilities belong to `ASE_Semantic_routing.md` or to broader gateway control-plane systems outside this subsystem.
+Those responsibilities belong to `semantic_routing_module.md` or to broader ASE control-plane components outside this module.
 
 ## Design
 
-### Subsystem Summary
+### Module Summary
 
-Load Balancing is the authoritative endpoint-selection layer in ASE. It accepts a request whose `model` has already been resolved, maps that model to a backend pool, filters endpoints using health and eligibility rules, applies scheduling policy, and dispatches the request to a concrete execution target.
+The Load Balancing Module is the authoritative endpoint-selection module in ASE. It accepts a request whose `model` has already been resolved, maps that model to a backend pool, filters endpoints using health and eligibility rules, applies scheduling policy, and dispatches the request to a concrete execution target.
 
-The key property of the subsystem is that it resolves an endpoint, not a model. Its value comes from making runtime dispatch reliable, observable, and operationally tunable without collapsing back into semantic decision making.
+The key property of the module is that it resolves an endpoint, not a model. Its value comes from making runtime dispatch reliable, observable, and operationally tunable without collapsing back into semantic decision making.
 
 ### Architectural Position
 
-Load Balancing appears in the request path as follows:
+The Load Balancing Module appears in the request path as follows:
 
-`Client Request -> Semantic Routing -> Request Enrichment (model=...) -> Load Balancing -> Selected Backend Instance`
+`Client Request -> Semantic Routing Module -> Request Enrichment (model=...) -> Load Balancing Module -> Selected Backend Instance`
 
 Its contract is:
 
 - input: request with resolved `model` plus route metadata
 - output: selected backend endpoint plus dispatch behavior governed by runtime policy
 
-That contract is normative. Load Balancing may decide where the selected model runs, but it may not change what model the request has been assigned.
+That contract is normative. The Load Balancing Module may decide where the selected model runs, but it may not change what model the request has been assigned.
 
-The subsystem should also produce a stable dispatch outcome contract for observability and downstream control paths.
+The module should also produce a stable dispatch outcome contract for observability and downstream control paths.
 
 | Field | Requirement Level | Purpose |
 | --- | --- | --- |
@@ -112,7 +112,7 @@ The subsystem should also produce a stable dispatch outcome contract for observa
 
 ### System Design Diagram
 
-The diagram below shows the internal flow of the Load Balancing subsystem after model resolution has already completed.
+The diagram below shows the internal flow of the Load Balancing Module after model resolution has already completed.
 
 ```mermaid
 flowchart LR
@@ -125,7 +125,7 @@ flowchart LR
         Policy[Reliability and Affinity Policy]
     end
 
-    subgraph LB[Load Balancing Subsystem]
+    subgraph LB[Load Balancing Module]
         Pool[Pool Resolver]
         Candidates[Candidate Set Builder]
         Filter[Eligibility and Health Filter]
@@ -157,9 +157,9 @@ flowchart LR
 
 ### Architectural Invariants
 
-The following invariants are mandatory for this subsystem.
+The following invariants are mandatory for this module.
 
-1. Load Balancing must not begin until Semantic Routing has resolved the authoritative `model`.
+1. The Load Balancing Module must not begin until the Semantic Routing Module has resolved the authoritative `model`.
 2. Endpoint selection must remain constrained to the backend pool for that model.
 3. Endpoint health and hard eligibility must be evaluated before scheduling optimization.
 4. Retry and redispatch behavior must be explicit, finite, and observable.
@@ -169,7 +169,7 @@ These invariants define acceptable dispatch behavior even as backend technologie
 
 ### Internal Architecture
 
-The subsystem is composed of six logical components.
+The module is composed of six logical components.
 
 | Component | Primary Responsibility | Architectural Output |
 | --- | --- | --- |
@@ -184,9 +184,9 @@ The architecture is intentionally staged. Pool resolution defines the search spa
 
 ### Backend Pool Model
 
-Load Balancing schedules within logical backend pools associated with the resolved model.
+The Load Balancing Module schedules within logical backend pools associated with the resolved model.
 
-Each pool should be treated as the execution domain for a specific semantic decision. The subsystem should not search globally across all backends once a model has already been selected.
+Each pool should be treated as the execution domain for a specific semantic decision. The module should not search globally across all backends once a model has already been selected.
 
 Each pool definition should expose, at minimum:
 
@@ -210,7 +210,7 @@ The scheduler operates on a structured runtime view assembled from four input cl
 | Runtime Load Inputs | describe current execution pressure | in-flight requests, queue depth, latency, token throughput, rate-limit status |
 | Affinity Inputs | preserve useful locality where possible | session ID, conversation ID, tenant ID, sticky hash |
 
-Without these inputs, endpoint choice becomes blind traffic spreading. With them, Load Balancing becomes a controlled scheduling problem grounded in current system state.
+Without these inputs, endpoint choice becomes blind traffic spreading. With them, the Load Balancing Module becomes a controlled scheduling problem grounded in current system state.
 
 ### Dispatch Framework
 
@@ -218,11 +218,11 @@ Dispatch should be understood as a staged reduction process rather than a single
 
 #### Stage 1: Resolve Pool
 
-The subsystem maps the resolved `model` field to the logical backend pool that is allowed to serve it. This establishes the execution domain for the request.
+The module maps the resolved `model` field to the logical backend pool that is allowed to serve it. This establishes the execution domain for the request.
 
 #### Stage 2: Build Candidate Set
 
-The subsystem retrieves all endpoints that belong to the selected pool together with their static metadata and current runtime state.
+The module retrieves all endpoints that belong to the selected pool together with their static metadata and current runtime state.
 
 #### Stage 3: Apply Hard Exclusions
 
@@ -230,7 +230,7 @@ Endpoints that are down, draining, policy-ineligible, locality-ineligible, or ot
 
 #### Stage 4: Apply Affinity Preference
 
-If stickiness is enabled, the subsystem should prefer the previously associated endpoint when it remains healthy and eligible. Affinity is applied after hard exclusion because locality cannot override serviceability.
+If stickiness is enabled, the module should prefer the previously associated endpoint when it remains healthy and eligible. Affinity is applied after hard exclusion because locality cannot override serviceability.
 
 #### Stage 5: Select Endpoint
 
@@ -238,13 +238,13 @@ The scheduler chooses the best endpoint among the remaining candidates using the
 
 #### Stage 6: Dispatch and Observe
 
-The subsystem dispatches the request, classifies the outcome, and updates health, reliability, and observability state accordingly.
+The module dispatches the request, classifies the outcome, and updates health, reliability, and observability state accordingly.
 
 This staged framework is central to explainability. It allows operators to understand not only which endpoint was chosen, but why other endpoints were excluded or deprioritized.
 
 ### Scheduling Model
 
-Load Balancing should support a family of scheduling strategies rather than a single fixed algorithm. Different backend topologies favor different policies.
+The Load Balancing Module should support a family of scheduling strategies rather than a single fixed algorithm. Different backend topologies favor different policies.
 
 | Scheduling Strategy | Best Fit | Primary Tradeoff |
 | --- | --- | --- |
@@ -254,7 +254,7 @@ Load Balancing should support a family of scheduling strategies rather than a si
 | Priority / Weighted Failover | primary-backup or tiered backend topologies | explicit preference ordering, less even spread |
 | Metrics-Aware Scheduling | rich telemetry environments | better adaptation, stronger dependency on telemetry quality |
 
-The initial ASE deployment can start with simpler strategies such as weighted round robin or least in-flight and evolve toward richer metrics-aware approaches without changing the subsystem boundary.
+The initial ASE deployment can start with simpler strategies such as weighted round robin or least in-flight and evolve toward richer metrics-aware approaches without changing the module boundary.
 
 ### Advanced Scheduling Strategies
 
@@ -289,7 +289,7 @@ Circuit-breaking state may be layered on top of endpoint health. An `open` circu
 
 ### Reliability Model
 
-Reliability behavior is part of the subsystem design, not an implementation afterthought.
+Reliability behavior is part of the module design, not an implementation afterthought.
 
 Retries should be finite and policy-controlled. Redispatch should occur only when the failure mode and request semantics make it safe to do so. Failover should remain bounded and observable rather than open-ended.
 
@@ -297,7 +297,7 @@ Safe retry scenarios usually involve failures before execution begins, such as c
 
 For streaming responses, redispatch is usually unsafe once bytes or tokens have already been relayed to the caller. Unless the upstream protocol provides explicit resumable semantics, ASE should treat post-stream-start failures as terminal execution failures rather than silently replaying them on another backend.
 
-If retry and redispatch are exhausted, the subsystem must emit a clear infrastructure failure rather than silently collapsing the error into a semantic-routing problem.
+If retry and redispatch are exhausted, the module must emit a clear infrastructure failure rather than silently collapsing the error into a semantic-routing problem.
 
 ### Affinity and Locality Model
 
@@ -305,11 +305,11 @@ Affinity exists to improve locality, not to weaken availability.
 
 Useful affinity keys include session ID, conversation ID, tenant ID, and request-class hashes that approximate cache reuse or backend warm state. Affinity may improve session continuity, prefix-cache locality, and hot-state reuse, but it should always remain subordinate to endpoint eligibility and health.
 
-Consistent placement strategies may be used where stable assignment matters, but the subsystem must still be able to break affinity when the preferred endpoint is unhealthy, draining, or overloaded beyond policy.
+Consistent placement strategies may be used where stable assignment matters, but the module must still be able to break affinity when the preferred endpoint is unhealthy, draining, or overloaded beyond policy.
 
 ### Metrics and Runtime State
 
-The subsystem should be able to operate correctly using generic telemetry and improve when richer backend-native telemetry exists.
+The module should be able to operate correctly using generic telemetry and improve when richer backend-native telemetry exists.
 
 Generic metrics that should work across backend types include:
 
@@ -362,7 +362,7 @@ This compatibility model is operationally important. A backend that lacks `/metr
 
 ### Failure Semantics
 
-Load Balancing must classify failures by dispatch stage so that operators can distinguish an endpoint-selection failure from a semantic-routing failure.
+The Load Balancing Module must classify failures by dispatch stage so that operators can distinguish an endpoint-selection failure from a semantic-routing failure.
 
 | Failure Class | Meaning | Typical Cause |
 | --- | --- | --- |
@@ -375,7 +375,7 @@ These categories matter because they let operators distinguish semantic success 
 
 ### Observability
 
-Load Balancing must expose operationally useful telemetry because its decisions are driven by runtime state and often change rapidly under load.
+The Load Balancing Module must expose operationally useful telemetry because its decisions are driven by runtime state and often change rapidly under load.
 
 Core metrics should include:
 
@@ -394,7 +394,7 @@ The minimum dispatch trace should preserve enough state to reconstruct the path 
 
 ### Configuration Model
 
-The subsystem should be configured declaratively rather than through code changes. This is necessary so that scheduling and reliability policy remain reviewable and tunable as fleet conditions evolve.
+The module should be configured declaratively rather than through code changes. This is necessary so that scheduling and reliability policy remain reviewable and tunable as fleet conditions evolve.
 
 The configuration surface should at least cover:
 
@@ -444,7 +444,7 @@ The exact DSL is implementation-specific. The architectural requirement is that 
 
 ### Security and Operational Implications
 
-Although Load Balancing is not the semantic governance layer, it is still a security- and operations-relevant subsystem because it controls the actual execution path to backend systems.
+Although the Load Balancing Module is not the semantic governance layer, it is still a security- and operations-relevant module because it controls the actual execution path to backend systems.
 
 At minimum, it should support:
 
@@ -461,12 +461,12 @@ These controls make the dispatch layer operationally trustworthy without turning
 
 This design makes dispatch behavior tunable and observable, but it also imposes obligations on the implementation.
 
-The subsystem must maintain a stable model-to-pool contract, preserve explicit health semantics, and keep retry and redispatch behavior visible to operators. It must also resist architectural drift. If prompt meaning or business policy starts to directly drive endpoint selection inside this layer, or if this layer silently rewrites model choice during failure handling, the boundary with Semantic Routing has been violated and the design has degraded.
+The module must maintain a stable model-to-pool contract, preserve explicit health semantics, and keep retry and redispatch behavior visible to operators. It must also resist architectural drift. If prompt meaning or business policy starts to directly drive endpoint selection inside this module, or if this module silently rewrites model choice during failure handling, the boundary with the Semantic Routing Module has been violated and the design has degraded.
 
 ## References
 
-- [R1] `overview.md`, ASE LLM Gateway Architecture Overview
-- [R2] `ASE_Semantic_routing.md`, ASE Semantic Routing Design
+- [R1] `architecture.md`, ASE Semantic Routing and Load Balancing Architecture
+- [R2] `semantic_routing_module.md`, ASE Semantic Routing Module Design
 - [R3] NGINX HTTP Load Balancing Documentation, https://docs.nginx.com/nginx/admin-guide/load-balancer/http-load-balancer/
 - [R4] HAProxy Reliability and Health Check Documentation, https://www.haproxy.com/documentation/haproxy-configuration-tutorials/reliability/
 - [R5] vLLM Metrics Documentation, https://docs.vllm.ai/en/stable/design/metrics/

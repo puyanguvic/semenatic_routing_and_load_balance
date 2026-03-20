@@ -1,16 +1,16 @@
-# ASE Semantic Routing Design
+# ASE Semantic Routing Module Design
 
 ## Introduction
 
-This document defines the design of the Semantic Routing subsystem in the ASE LLM gateway. Semantic Routing is the first decision layer in the request path and is responsible for resolving which model should serve a request before any backend instance is selected.
+This document defines the design of the Semantic Routing Module in the ASE Semantic Routing and Load Balancing architecture. The Semantic Routing Module is the first decision stage in the request path and is responsible for resolving which model should serve a request before any backend instance is selected.
 
-This document is not a general discussion of prompt classification. It is the governing design for a production routing subsystem that must convert an incoming request into an authoritative, policy-compliant, explainable model decision. Its output is a request enriched with `model=<resolved-model>` plus the routing metadata required by downstream systems and operators.
+This document is not a general discussion of prompt classification. It is the governing design for the production model-selection module that must convert an incoming request into an authoritative, policy-compliant, explainable model decision. Its output is a request enriched with `model=<resolved-model>` plus the routing metadata required by downstream systems and operators.
 
-Within the overall document set, this file defines the model-selection subsystem only. Gateway-wide architecture is defined in `overview.md`, and instance-level dispatch is defined in `load_balancer.md`.
+Within the overall document set, this file defines the model-selection module only. System-wide architecture is defined in `architecture.md`, and instance-level dispatch is defined in `load_balancing_module.md`.
 
 ## Background
 
-### Subsystem Problem
+### Module Problem
 
 Semantic Routing solves the following problem:
 
@@ -18,7 +18,7 @@ Semantic Routing solves the following problem:
 
 This problem is broader than intent classification. A production router must simultaneously account for request semantics, capability requirements, context limits, governance boundaries, tenant restrictions, cost and latency preferences, and multi-turn continuity. A router that ignores any of these dimensions will eventually make decisions that are either operationally unsafe or business-incorrect.
 
-### Why This Layer Must Exist
+### Why This Module Must Exist
 
 Semantic Routing exists because model choice and endpoint choice are different decisions.
 
@@ -28,7 +28,7 @@ ASE therefore isolates Semantic Routing as the layer that owns model selection a
 
 ### Design Objectives
 
-The subsystem is designed to achieve the following outcomes:
+The module is designed to achieve the following outcomes:
 
 - select a model that is semantically appropriate and policy-compliant
 - keep model resolution separate from backend scheduling
@@ -39,11 +39,11 @@ The subsystem is designed to achieve the following outcomes:
 
 ### Governing Principles
 
-The subsystem follows five governing principles.
+The module follows five governing principles.
 
 First, Semantic Routing is model-centric, not server-centric. Second, hard constraints and policy constraints must be applied before optimization. Third, routing should be composed from explicit signals and declarative policy, not hidden heuristics embedded in code paths. Fourth, every final decision must leave a recoverable reason trail. Fifth, governance-sensitive checks must happen before the request reaches an inference backend.
 
-ASE is aligned with the signal-driven design direction described in the vLLM Semantic Router work, especially its emphasis on heterogeneous signals, policy-aware decision logic, and post-decision plugin execution. ASE adopts that direction at the gateway level while preserving a strict handoff to downstream Load Balancing. See [R3].
+ASE is aligned with the signal-driven design direction described in the vLLM Semantic Router work, especially its emphasis on heterogeneous signals, policy-aware decision logic, and post-decision plugin execution. ASE adopts that direction at the system level while preserving a strict handoff to the downstream Load Balancing Module. See [R3].
 
 ## Scope
 
@@ -73,32 +73,32 @@ This document does not define:
 - pool-level failover
 - generic API gateway concerns unrelated to model selection
 
-Those responsibilities belong to `load_balancer.md` or to broader gateway infrastructure outside this subsystem.
+Those responsibilities belong to `load_balancing_module.md` or to broader ASE infrastructure outside this module.
 
 ## Design
 
-### Subsystem Summary
+### Module Summary
 
-Semantic Routing is the authoritative model-selection layer in ASE. It receives a normalized request plus tenant, policy, and session context; evaluates that request against the routable model universe; and produces an explicit model decision that downstream Load Balancing must honor.
+The Semantic Routing Module is the authoritative model-selection module in ASE. It receives a normalized request plus tenant, policy, and session context; evaluates that request against the routable model universe; and produces an explicit model decision that the downstream Load Balancing Module must honor.
 
-The key property of the subsystem is that it resolves a model, not an endpoint. Its value comes from making that decision explicit, policy-safe, and observable.
+The key property of the module is that it resolves a model, not an endpoint. Its value comes from making that decision explicit, policy-safe, and observable.
 
 ### Architectural Position
 
-Semantic Routing appears in the request path as follows:
+The Semantic Routing Module appears in the request path as follows:
 
-`Client Request -> Semantic Routing -> Request Enrichment (model=...) -> Load Balancing`
+`Client Request -> Semantic Routing Module -> Request Enrichment (model=...) -> Load Balancing Module`
 
 Its contract is:
 
 - input: canonical request plus identity, policy, and session context
 - output: request enriched with resolved `model` and routing metadata
 
-That contract is normative. Semantic Routing may decide what model the request should use, but it may not decide where that model runs.
+That contract is normative. The Semantic Routing Module may decide what model the request should use, but it may not decide where that model runs.
 
 ### System Design Diagram
 
-The diagram below shows the internal flow of the Semantic Routing subsystem and the knowledge sources it depends on.
+The diagram below shows the internal flow of the Semantic Routing Module and the knowledge sources it depends on.
 
 ```mermaid
 flowchart LR
@@ -115,7 +115,7 @@ flowchart LR
         Objectives[Optimization Objectives]
     end
 
-    subgraph Router[Semantic Routing Subsystem]
+    subgraph Router[Semantic Routing Module]
         Normalize[Request Normalizer]
         Signals[Signal Extraction Engine]
         Filter[Eligibility and Constraint Filter]
@@ -152,19 +152,19 @@ flowchart LR
 
 ### Architectural Invariants
 
-The following invariants are mandatory for this subsystem.
+The following invariants are mandatory for this module.
 
 1. Semantic Routing must resolve a model before any instance-level dispatch begins.
 2. Model selection must be based on explicit routing context, not implicit downstream fallback behavior.
 3. Hard capability constraints and policy constraints must be evaluated before optimization among candidates.
-4. The subsystem must emit enough decision metadata to explain both acceptance and rejection outcomes.
+4. The module must emit enough decision metadata to explain both acceptance and rejection outcomes.
 5. Session continuity may influence optimization, but it may not override hard capability or policy constraints.
 
-These invariants define the acceptable behavior of the subsystem even as implementation details evolve.
+These invariants define the acceptable behavior of the module even as implementation details evolve.
 
 ### Internal Architecture
 
-The subsystem is composed of five logical components.
+The module is composed of five logical components.
 
 | Component | Primary Responsibility | Architectural Output |
 | --- | --- | --- |
@@ -178,7 +178,7 @@ The architecture is deliberately linear. Normalization produces a stable routing
 
 ### Routing Context
 
-Semantic Routing consumes more than prompt text. It requires a structured routing context assembled from four input classes.
+The Semantic Routing Module consumes more than prompt text. It requires a structured routing context assembled from four input classes.
 
 | Input Class | Purpose | Representative Examples |
 | --- | --- | --- |
@@ -191,7 +191,7 @@ Without this context, model selection becomes guesswork. With it, routing become
 
 ### Candidate Model Registry
 
-Semantic Routing depends on an authoritative model registry. This registry is not a convenience layer; it is the substrate against which capability constraints and policy rules are evaluated.
+The Semantic Routing Module depends on an authoritative model registry. This registry is not a convenience layer; it is the substrate against which capability constraints and policy rules are evaluated.
 
 Each routable model entry should expose, at minimum:
 
@@ -220,13 +220,13 @@ The signal set naturally falls into five groups.
 | Safety and Policy Signals | define whether a model is even eligible | privacy sensitivity, PII detection, jailbreak suspicion, provider restriction, region restriction |
 | Preference Signals | guide optimization among valid choices | cost preference, latency preference, quality preference, private deployment preference, continuity preference |
 
-The subsystem should compute only the signals needed for the current decision path. Cheap signals should remain cheap, and expensive signals should be invoked only when they materially affect the outcome.
+The module should compute only the signals needed for the current decision path. Cheap signals should remain cheap, and expensive signals should be invoked only when they materially affect the outcome.
 
 ### Reasoning Budget and Cost Model
 
 Reasoning budget is a routing concern because reasoning-oriented models may consume substantially more tokens, wall-clock time, and infrastructure resources than lightweight models.
 
-The subsystem should therefore estimate, when useful:
+The module should therefore estimate, when useful:
 
 - input-token volume
 - requested or inferred output length
@@ -242,11 +242,11 @@ The routing decision should be understood as a staged reduction process, not a m
 
 #### Stage 1: Normalize and Build Routing Context
 
-The subsystem first produces a canonical routing object from the raw request and attaches tenant, policy, and session metadata. This establishes the input contract for all later stages.
+The module first produces a canonical routing object from the raw request and attaches tenant, policy, and session metadata. This establishes the input contract for all later stages.
 
 #### Stage 2: Extract Routing Signals
 
-The subsystem computes the signals needed to reason about semantics, capability requirements, and governance. This stage transforms request content into structured routing evidence.
+The module computes the signals needed to reason about semantics, capability requirements, and governance. This stage transforms request content into structured routing evidence.
 
 #### Stage 3: Apply Hard Constraints
 
@@ -254,15 +254,15 @@ Models that cannot possibly serve the request are removed first. Typical example
 
 #### Stage 4: Apply Policy Constraints
 
-From the technically eligible set, the subsystem removes models that may not be used due to governance rules. Typical examples include private-data restrictions, tenant-specific provider restrictions, or regulated-traffic allowlists.
+From the technically eligible set, the module removes models that may not be used due to governance rules. Typical examples include private-data restrictions, tenant-specific provider restrictions, or regulated-traffic allowlists.
 
 #### Stage 5: Optimize Among Remaining Candidates
 
-Only after hard and policy constraints are satisfied does the subsystem optimize among remaining candidates. Optimization may consider quality, latency, cost, continuity, or other approved objectives, but it may not re-admit ineligible models.
+Only after hard and policy constraints are satisfied does the module optimize among remaining candidates. Optimization may consider quality, latency, cost, continuity, or other approved objectives, but it may not re-admit ineligible models.
 
 #### Stage 6: Execute Post-Decision Controls
 
-After the model decision is made, the subsystem executes decision-coupled plugins such as safety tagging, audit annotation, or optional semantic cache and augmentation hooks.
+After the model decision is made, the module executes decision-coupled plugins such as safety tagging, audit annotation, or optional semantic cache and augmentation hooks.
 
 This staged model is central to explainability. It allows the system to say not only which model was selected, but also why other models were excluded.
 
@@ -270,7 +270,7 @@ This staged model is central to explainability. It allows the system to say not 
 
 Session continuity is an optimization concern with architectural consequences. Users often expect stable behavior across related turns, and uncontrolled model churn makes conversations difficult to understand and operate.
 
-The subsystem should therefore preserve the previous model when doing so remains semantically valid and policy-safe. It may escalate to a stronger model when a later turn exceeds the capability or context limits of the current model. Downgrades should be conservative and should require explicit policy support, because a mid-session downgrade often harms continuity more than it saves cost.
+The module should therefore preserve the previous model when doing so remains semantically valid and policy-safe. It may escalate to a stronger model when a later turn exceeds the capability or context limits of the current model. Downgrades should be conservative and should require explicit policy support, because a mid-session downgrade often harms continuity more than it saves cost.
 
 Useful session metadata includes the previous model, the last escalation reason, continuity preference, and any conversation classification history that materially affects routing.
 
@@ -292,13 +292,13 @@ If semantic cache or response reuse is employed, cache lookup must remain subord
 
 ### Output Contract
 
-The output of Semantic Routing is the formal handoff artifact to downstream Load Balancing and to operators who need to understand what decision was made.
+The output of the Semantic Routing Module is the formal handoff artifact to the downstream Load Balancing Module and to operators who need to understand what decision was made.
 
 The contract should contain the following fields.
 
 | Field | Requirement Level | Purpose |
 | --- | --- | --- |
-| `model` | required | authoritative model decision consumed by Load Balancing |
+| `model` | required | authoritative model decision consumed by the Load Balancing Module |
 | `request_id` | required | stable request identity across routing, dispatch, and observability |
 | `route_decision_status` | required | distinguish successful routing from semantic rejection paths |
 | `route_reason` | optional | preserve human- and operator-readable routing rationale |
@@ -371,9 +371,9 @@ When debug mode is authorized, ASE may return controlled routing detail such as 
 
 ### Explainability and Audit Requirements
 
-Explainability is not optional for this subsystem. Since Semantic Routing is the point where model choice is made, it must leave enough evidence for debugging, audit, and policy review.
+Explainability is not optional for this module. Since the Semantic Routing Module is the point where model choice is made, it must leave enough evidence for debugging, audit, and policy review.
 
-For each request, the subsystem should be able to recover at least:
+For each request, the module should be able to recover at least:
 
 - request ID
 - session ID when present
@@ -388,21 +388,21 @@ ASE may expose a controlled debug mode for trusted operators or callers, but tha
 
 ### Failure Semantics
 
-Semantic Routing must classify failures precisely so they are not confused with downstream serving failures.
+The Semantic Routing Module must classify failures precisely so they are not confused with downstream serving failures.
 
 | Failure Class | Meaning | Typical Cause |
 | --- | --- | --- |
 | No Eligible Model | no model satisfies hard capability or deployment constraints | insufficient context window, missing modality support, unavailable deployment zone |
 | Policy Denial | one or more models are technically capable, but all are forbidden by policy | tenant restriction, private-boundary rule, provider allowlist |
 | Invalid Routing Request | the request is malformed or missing required routing context | malformed payload, missing required metadata, unsupported request shape |
-| Decision Engine Failure | the subsystem itself failed unexpectedly during routing | internal evaluation failure, policy engine error, signal extraction failure |
-| Deferred Infrastructure Failure | Semantic Routing succeeded, but downstream execution later failed | endpoint unavailable, dispatch failure, retry exhaustion in Load Balancing |
+| Decision Engine Failure | the module itself failed unexpectedly during routing | internal evaluation failure, policy engine error, signal extraction failure |
+| Deferred Infrastructure Failure | the Semantic Routing Module succeeded, but downstream execution later failed | endpoint unavailable, dispatch failure, retry exhaustion in the Load Balancing Module |
 
-The last category is included to preserve boundary clarity: it is observable to operators, but it is not owned by this subsystem.
+The last category is included to preserve boundary clarity: it is observable to operators, but it is not owned by this module.
 
 ### Observability
 
-Semantic Routing should expose first-class metrics, logs, and trace fields because this is where the gateway's model-level decision is made.
+The Semantic Routing Module should expose first-class metrics, logs, and trace fields because this is where ASE's model-level decision is made.
 
 Core metrics should include:
 
@@ -421,7 +421,7 @@ The minimum routing trace should preserve enough state to reconstruct the decisi
 
 ### Configuration Model
 
-The subsystem should be configured declaratively rather than through code changes. This is necessary both for operational agility and for policy reviewability.
+The module should be configured declaratively rather than through code changes. This is necessary both for operational agility and for policy reviewability.
 
 The configuration surface should at least cover:
 
@@ -473,7 +473,7 @@ The exact DSL is implementation-specific. The architectural requirement is that 
 
 ### Security and Governance Implications
 
-Semantic Routing is one of the earliest governance enforcement points in the LLM request path. That makes it a security-relevant subsystem, not just a convenience layer for picking a cheaper or better model.
+The Semantic Routing Module is one of the earliest governance enforcement points in the LLM request path. That makes it a security-relevant module, not just a convenience layer for picking a cheaper or better model.
 
 At minimum, it must support:
 
@@ -484,16 +484,16 @@ At minimum, it must support:
 - tenant-specific provider restrictions
 - audit tagging for regulated traffic
 
-These controls are part of the subsystem's core purpose because they determine whether a request may be sent to a model at all.
+These controls are part of the module's core purpose because they determine whether a request may be sent to a model at all.
 
 ### Architectural Consequences
 
 This design makes model selection explainable and governable, but it also imposes obligations on the implementation.
 
-The subsystem must maintain a stable model registry, preserve a stable output contract, and keep decision traces rich enough for operators to use. It must also resist architectural drift. If queue depth, endpoint availability, or retry behavior begin to drive model selection directly, the subsystem has absorbed responsibilities that belong to Load Balancing and the design has degraded.
+The module must maintain a stable model registry, preserve a stable output contract, and keep decision traces rich enough for operators to use. It must also resist architectural drift. If queue depth, endpoint availability, or retry behavior begin to drive model selection directly, the module has absorbed responsibilities that belong to the Load Balancing Module and the design has degraded.
 
 ## References
 
-- [R1] `overview.md`, ASE LLM Gateway Architecture Overview
-- [R2] `load_balancer.md`, ASE Load Balancing Design
+- [R1] `architecture.md`, ASE Semantic Routing and Load Balancing Architecture
+- [R2] `load_balancing_module.md`, ASE Load Balancing Module Design
 - [R3] vLLM Semantic Router: Signal Driven Decision Routing for Mixture-of-Modality Models, https://arxiv.org/abs/2603.04444
