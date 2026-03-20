@@ -1,654 +1,541 @@
 # ASE Semantic Routing Design
 
-## Document Status
+## Introduction
 
-* **Document ID**: ASE-LLM-SEMANTIC-ROUTING
-* **Document Type**: Subsystem Design
-* **Intended Audience**: Platform architects, gateway engineers, AI infrastructure engineers, security engineers
-* **Scope Level**: Detailed subsystem design
-* **Related Documents**:
+This document defines the design of the Semantic Routing subsystem in the ASE LLM gateway. Semantic Routing is the first decision layer in the request path and is responsible for deciding which model should serve a request before any backend instance is selected.
 
-  * `ASE LLM Gateway Architecture Overview`
-  * `ASE Load Balancing Design`
+Its output is an enriched request that contains an authoritative `model` field plus optional routing metadata such as route reason, policy tags, or debug information. That output is the contract consumed by the downstream Load Balancing subsystem.
 
----
+This document is intentionally focused on request-level model selection. It does not redefine gateway-wide architecture or instance-level traffic scheduling, which are described in `overview.md` and `load_balancer.md`.
 
-## 1. Introduction
+## Background
 
-This document specifies the design of the **Semantic Routing** subsystem in the ASE LLM gateway.
-
-The role of Semantic Routing is to determine **which model should serve a request**. It operates before infrastructure-level dispatch and is responsible for converting an incoming request into a policy-compliant, explainable, and operationally useful **model selection decision**. Its output is a request enriched with an authoritative `model` field and optional routing metadata.
-
-This design is informed by the signal-driven routing architecture proposed in **vLLM Semantic Router**, which treats routing as a structured decision problem built from heterogeneous signals, Boolean decision logic, and per-decision plugin execution. That paper presents a three-layer architecture—**signal extraction**, **decision evaluation**, and **plugin chains**—and explicitly positions semantic routing as a request-level **Mixture-of-Models** problem rather than a server-level scheduling problem. ([arXiv][1])
-
-In ASE, we adopt that design direction for the model-selection layer, while keeping backend instance scheduling explicitly out of scope for this document.
-
----
-
-## 2. Scope
-
-### 2.1 In Scope
-
-This document covers:
-
-* semantic model selection
-* routing signal extraction
-* model eligibility filtering
-* policy-aware decision evaluation
-* request enrichment with resolved model metadata
-* routing explainability and debug outputs
-* session-level routing continuity
-* semantic failure handling
-* routing-related observability
-
-### 2.2 Out of Scope
-
-This document does **not** define:
-
-* backend instance scheduling
-* endpoint health checks
-* retry policies
-* failover across serving instances
-* pool-level traffic distribution
-* load-balancer algorithm selection
-
-Those concerns belong to `ASE Load Balancing Design`.
-
----
-
-## 3. Problem Definition
+### Problem Definition
 
 Semantic Routing solves the following problem:
 
-> Given an incoming LLM request, a heterogeneous set of candidate models, and a set of deployment, policy, and business constraints, determine the most appropriate target model for the request.
+> Given an incoming LLM request, a heterogeneous set of candidate models, and a set of policy, deployment, and business constraints, determine the most appropriate target model for the request.
 
-This is not equivalent to simple prompt classification. A production semantic router must simultaneously reason about:
+This is not the same as simple prompt classification. In production, the router must reason about multiple dimensions at once:
 
-* task and domain
-* model capability fit
-* context-window requirements
-* cost and latency preference
-* privacy and safety constraints
-* deployment restrictions
-* multi-turn session consistency
+- task type and domain
+- reasoning complexity
+- context-window requirements
+- modality support
+- cost and latency preference
+- privacy, safety, and compliance constraints
+- tenant or deployment restrictions
+- session continuity across multi-turn interactions
 
-The vLLM Semantic Router paper makes this explicit. It argues that production routing must consider multi-dimensional signals including domain, modality, complexity, language, identity, privacy/safety, deployment diversity, and multi-turn consistency, rather than only “difficulty routing” between a small number of models. ([arXiv][2])
+### Why Semantic Routing Is a Separate Layer
 
----
+If semantic model choice is mixed directly into load balancing or endpoint scheduling, the system becomes difficult to explain and operate. Model selection needs request semantics and policy context. Instance scheduling needs runtime infrastructure state. These are different concerns and should remain separate.
 
-## 4. Design Goals
+Within ASE, Semantic Routing therefore owns only model selection. It must not become a hidden endpoint scheduler, and it must not rely on per-instance runtime signals such as queue depth or connection pressure to make model-level decisions under normal operation.
 
-The Semantic Routing subsystem is designed to satisfy the following goals.
+### Design Goals
 
-### 4.1 Correctness of Model Choice
+The Semantic Routing subsystem is designed to satisfy the following goals:
 
-The subsystem should select a model that is semantically appropriate and policy-compliant for the request.
+- select a model that is semantically appropriate and policy-compliant
+- keep a strict separation from backend instance scheduling
+- enforce governance before expensive model invocation
+- produce explainable routing outcomes
+- remain extensible as new models, signals, and policies are introduced
+- keep routing latency bounded through selective signal computation
 
-### 4.2 Explicit Separation from Load Balancing
+### Design Principles
 
-The subsystem should determine the **model**, not the **serving instance**.
+The subsystem follows these design principles:
 
-### 4.3 Policy-First Decision Making
+- model-centric rather than server-centric decision making
+- apply hard constraints before optimization
+- compose decisions from multiple heterogeneous signals instead of one opaque classifier
+- keep policy and routing behavior configuration-driven
+- preserve a reason trail for every final routing outcome
+- evaluate safety and governance controls before execution
 
-Governance constraints should be enforced before expensive model invocation.
+ASE draws on the signal-driven design direction described in the vLLM Semantic Router work, especially its emphasis on heterogeneous signals, decision logic, and per-decision plugin handling. ASE adopts those ideas at the gateway level while preserving a strict handoff to downstream Load Balancing. See [R3].
 
-### 4.4 Explainability
+## Scope
 
-The subsystem should be able to explain why a model was selected or why no model was eligible.
+### In Scope
 
-### 4.5 Extensibility
+This document covers:
 
-New signals, new policies, and new model families should be introducible without redesigning the subsystem.
+- semantic model selection
+- request normalization for routing
+- routing signal extraction
+- model eligibility filtering
+- policy-aware decision evaluation
+- request enrichment with resolved model metadata
+- routing explainability and debug outputs
+- session-level routing continuity
+- semantic failure handling
+- routing-related observability
+- configuration and governance considerations specific to model selection
 
-### 4.6 Low Decision Latency
+### Out of Scope
 
-Semantic routing should add bounded overhead and should support selective signal computation so that expensive signals are evaluated only when needed. The vLLM Semantic Router paper emphasizes heterogeneous signal extraction, including both sub-millisecond heuristic signals and more expensive learned classifiers, which is a useful template for ASE. ([arXiv][2])
+This document does not define:
 
----
+- backend instance scheduling
+- endpoint health checks
+- queue-aware dispatch
+- retry or redispatch mechanics
+- pool-level failover
+- transport-level traffic distribution
 
-## 5. Non-Goals
+Those concerns belong to `load_balancer.md`.
 
-The subsystem is not intended to:
+## Design
 
-* optimize GPU utilization directly
-* monitor per-instance queue depth
-* retry failed upstream requests
-* rebalance across backend replicas
-* replace load balancing
-* implement generic API gateway concerns unrelated to model selection
+### Architectural Position
 
----
+Semantic Routing is the first decision layer in the ASE request path:
 
-## 6. Architectural Position
+`Client Request -> Semantic Routing -> Request Enrichment (model=...) -> Load Balancing`
 
-Within the ASE gateway, Semantic Routing is the **first decision layer** in the request path.
+Its contract is strict:
 
-**Client Request -> Semantic Routing -> Request Enrichment (`model=...`) -> Load Balancing**
+- input: a normalized client request plus gateway identity and policy context
+- output: a request enriched with a resolved `model` and optional routing metadata
 
-The contract is strict:
+Semantic Routing may choose the model, but it may not choose the serving instance. That ownership boundary is fundamental to the overall ASE architecture.
 
-* Semantic Routing resolves the target model.
-* Load Balancing receives that resolved model and schedules only within the corresponding backend pool.
+### Internal Architecture
 
-This separation is central to the overall ASE architecture.
+The subsystem is composed of five logical components.
 
----
+#### Request Normalizer
 
-## 7. Design Principles
-
-### 7.1 Model-Centric, Not Server-Centric
-
-Semantic Routing is responsible for model selection only.
-
-### 7.2 Constraint-Then-Optimization
-
-The subsystem should first apply hard eligibility and policy constraints, then optimize among remaining candidates.
-
-### 7.3 Composable Signal Orchestration
-
-Routing should be built from multiple heterogeneous signals, not a single monolithic classifier. This is the central architectural idea in vLLM Semantic Router, which describes “composable signal orchestration” as the core contribution of the system. ([arXiv][1])
-
-### 7.4 Configuration-Driven Policy
-
-Routing policy should be configurable rather than hardcoded.
-
-### 7.5 Explainable Outputs
-
-Each final routing decision should have a recoverable reason trail.
-
-### 7.6 Safety Before Invocation
-
-Safety, privacy, and governance controls should be evaluated before the request reaches a model backend.
-
----
-
-## 8. Internal Architecture
-
-The Semantic Routing subsystem is composed of five logical components.
-
-### 8.1 Request Normalizer
-
-Transforms inbound API requests into a canonical internal routing representation.
+This component converts northbound API traffic into a canonical internal routing representation.
 
 Responsibilities:
 
-* normalize request shape
-* extract control parameters
-* extract session and tenant metadata
-* canonicalize message content for downstream signal extraction
+- normalize request shape
+- extract control parameters
+- canonicalize message content
+- attach tenant, user, and session metadata needed for routing
 
-### 8.2 Signal Extraction Engine
+#### Signal Extraction Engine
 
-Produces a structured routing context from the request.
-
-Responsibilities:
-
-* heuristic signal extraction
-* ML-based signal extraction
-* optional cached feature reuse
-* selective signal computation
-
-The vLLM Semantic Router paper describes a signal-extraction layer spanning heuristic signals such as keyword patterns, language detection, context length, and authorization, as well as neural signals such as domain classification, embedding similarity, factual grounding, modality, and safety-related detection. ([arXiv][1])
-
-### 8.3 Eligibility and Constraint Filter
-
-Removes models that are impossible or disallowed for the request.
+This component computes the structured routing context used by downstream decision logic.
 
 Responsibilities:
 
-* context window filtering
-* modality support filtering
-* policy boundary filtering
-* tenant policy filtering
-* compliance-zone filtering
+- run heuristic extractors
+- run optional ML-based extractors
+- reuse cached features when possible
+- avoid unnecessary high-cost signal computation
 
-### 8.4 Decision Engine
+#### Eligibility and Constraint Filter
 
-Resolves a target model from the eligible candidate set.
-
-Responsibilities:
-
-* apply routing policy
-* score or rank candidates
-* select final model
-* produce routing rationale
-
-The paper’s decision layer is Boolean and policy-driven rather than a single opaque predictor, which is a useful design template for ASE. ([arXiv][2])
-
-### 8.5 Policy Plugin Chain
-
-Executes per-decision controls associated with routing outcomes.
+This component removes models that are impossible or disallowed for the current request.
 
 Responsibilities:
 
-* safety gating
-* PII handling
-* audit tagging
-* request annotation
-* optional semantic cache lookups
-* optional retrieval or augmentation triggers
+- filter by context window
+- filter by modality support
+- filter by policy boundary
+- filter by tenant restriction
+- filter by compliance or deployment zone
 
-vLLM Semantic Router explicitly models per-decision plugin chains as part of the routing architecture and uses them for safety, caching, and augmentation behaviors. ([arXiv][2])
+#### Decision Engine
 
----
+This component selects the final model from the remaining eligible candidates.
 
-## 9. Routing Inputs
+Responsibilities:
+
+- apply routing policy
+- score or rank candidate models
+- select the final model
+- produce routing rationale and reason codes
+
+#### Policy Plugin Chain
+
+This component executes decision-coupled controls that should run once a routing outcome is known.
+
+Responsibilities:
+
+- apply safety gating
+- attach audit tags
+- handle PII-sensitive routing annotations
+- trigger optional semantic cache checks
+- trigger optional retrieval or augmentation hooks
+
+### Routing Inputs
 
 Semantic Routing consumes four classes of input.
 
-### 9.1 Request Content
+#### Request Content
 
 Examples:
 
-* messages
-* prompt text
-* system prompt
-* multimodal payload metadata
-* requested output structure
+- messages
+- prompt text
+- system instructions
+- multimodal payload metadata
+- expected output structure
 
-### 9.2 Request Control Metadata
-
-Examples:
-
-* requested model or `model=auto`
-* user preference hints
-* debug flags
-* route override requests
-* expected response style or structured-output hints
-
-### 9.3 Identity and Governance Context
+#### Request Control Metadata
 
 Examples:
 
-* tenant identifier
-* caller identity
-* authorization context
-* compliance region
-* internal-only / external-allowed policy
+- requested model or `model=auto`
+- user preference hints
+- route override requests
+- debug flags
+- structured-output hints
 
-### 9.4 Session Context
-
-Examples:
-
-* session ID
-* conversation ID
-* prior selected model
-* continuity requirement
-* routing memory tags
-
-The vLLM Semantic Router paper states that the system supports stateful multi-turn conversations and conversation-consistent model assignment through OpenAI-style APIs, which supports including session continuity as a first-class routing input. ([arXiv][1])
-
----
-
-## 10. Routing Signals
-
-ASE should classify routing signals into five groups.
-
-### 10.1 Semantic Signals
-
-Capture what the request is about.
+#### Identity and Governance Context
 
 Examples:
 
-* domain: code, chat, reasoning, extraction, summarization
-* modality: text, code, image-enabled, multimodal
-* intent: generation, transformation, analysis, structured extraction
+- tenant identity
+- user or application identity
+- authorization class
+- privacy classification
+- data-handling boundary
+- compliance tags
 
-### 10.2 Complexity Signals
-
-Capture how hard the request appears to be.
-
-Examples:
-
-* shallow factual
-* moderate analytical
-* deep reasoning
-* long-form synthesis
-
-### 10.3 Capability-Requirement Signals
-
-Capture what the model must support.
+#### Session Context
 
 Examples:
 
-* long-context requirement
-* tool-calling requirement
-* structured JSON output requirement
-* multimodal support requirement
+- session ID
+- previous selected model
+- conversation continuity policy
+- escalation and downgrade history
 
-### 10.4 Safety and Policy Signals
+### Routing Signals
 
-Capture what controls apply.
+Routing decisions should be based on explicit signals rather than ad hoc prompt matching.
 
-Examples:
+#### Semantic Signals
 
-* PII presence
-* jailbreak risk
-* hallucination-sensitive request class
-* regulated-domain indicator
-* tenant restriction
-
-The paper describes privacy, safety, PII, jailbreak handling, and a gated hallucination-detection pipeline as part of the broader routing-time control framework. ([arXiv][1])
-
-### 10.5 Preference Signals
-
-Capture business or caller objectives.
+These signals describe what the request is about.
 
 Examples:
 
-* prefer low cost
-* prefer low latency
-* prefer high quality
-* prefer private deployment
-* prefer continuity with prior model
+- domain classification
+- language detection
+- intent detection
+- coding or tool-use indicators
+- extraction or structured-output indicators
 
----
+#### Complexity Signals
 
-## 11. Candidate Model Registry
-
-The Semantic Routing layer requires a **model capability registry** that describes the routable model universe.
-
-Each model entry should define at least:
-
-* logical model ID
-* model family
-* supported modalities
-* maximum context window
-* structured-output support
-* reasoning tier
-* deployment boundary
-* compliance tags
-* cost tier
-* latency tier
-* availability policy
-
-This registry is the authoritative source for model eligibility filtering.
-
----
-
-## 12. Routing Pipeline
-
-ASE Semantic Routing should execute the following pipeline.
-
-### Step 1: Normalize Request
-
-Convert the inbound request to the canonical internal format.
-
-### Step 2: Build Routing Context
-
-Collect content, metadata, session, and policy context into a single routing object.
-
-### Step 3: Extract Signals
-
-Run heuristic and ML-based signal extraction to produce a structured signal vector.
-
-### Step 4: Filter Ineligible Models
-
-Remove models that cannot satisfy hard requirements.
+These signals describe how difficult the request is likely to be.
 
 Examples:
 
-* insufficient context window
-* unsupported modality
-* prohibited deployment boundary
-* disallowed by tenant policy
+- reasoning depth estimate
+- expected chain length
+- ambiguity level
+- long-context requirement
 
-### Step 5: Apply Policy Gates
+#### Capability-Requirement Signals
 
-Apply policy rules that may reject the request, constrain the candidate set, or attach required plugins.
-
-### Step 6: Optimize Among Eligible Candidates
-
-Choose the target model according to configured objective.
-
-Possible objectives:
-
-* minimum cost subject to capability and quality floor
-* minimum latency subject to policy and quality floor
-* maximum quality within budget envelope
-* continuity-preserving choice under session constraints
-
-### Step 7: Execute Routing Plugins
-
-Run per-decision plugins such as annotation, redaction, audit tagging, or semantic cache lookup.
-
-### Step 8: Enrich Request
-
-Attach the authoritative `model` field and optional routing metadata.
-
-### Step 9: Emit Routing Trace
-
-Record reason codes and decision artifacts for debugging and auditability.
-
----
-
-## 13. Decision Model
-
-A professional semantic router should distinguish between three classes of logic.
-
-### 13.1 Hard Constraints
-
-These eliminate models from consideration.
+These signals describe what the selected model must support.
 
 Examples:
 
-* unsupported modality
-* insufficient context window
-* deployment prohibition
-* compliance mismatch
-* missing required feature support
+- context window size
+- multimodal capability
+- tool-calling support
+- structured-output reliability
+- deterministic-output preference
 
-### 13.2 Policy Constraints
+#### Safety and Policy Signals
 
-These enforce organizational rules.
-
-Examples:
-
-* regulated traffic must stay in private deployment
-* route override allowed only for privileged callers
-* certain tenants may not use certain providers
-* unsafe prompts may require guarded execution path
-
-### 13.3 Optimization Criteria
-
-These select among the remaining candidates.
+These signals determine whether a model is even eligible to run.
 
 Examples:
 
-* cheapest acceptable model
-* fastest acceptable model
-* best-quality model within budget
-* continuity-preserving model for an active session
+- privacy sensitivity
+- jailbreak suspicion
+- PII detection
+- restricted-domain handling
+- provider or region restrictions
 
-This separation is much cleaner than a single flat classifier.
+#### Preference Signals
 
----
+These signals influence optimization among already eligible models.
 
-## 14. Session and Multi-Turn Semantics
+Examples:
 
-Semantic Routing must support multi-turn behavior.
+- cost preference
+- latency preference
+- quality preference
+- private deployment preference
+- continuity preference with prior session state
 
-### 14.1 Session Continuity Goal
+### Candidate Model Registry
 
-Where appropriate, consecutive turns in the same session should preserve model continuity unless there is a strong reason to change the model.
+Semantic Routing requires a structured model registry rather than a flat list of model names. Each candidate model should expose enough metadata for the router to evaluate constraints and optimization criteria.
 
-### 14.2 Allowed Escalation
+Recommended registry attributes include:
 
-The subsystem may escalate a session from a smaller model to a stronger model if:
+- model ID
+- model family
+- supported modalities
+- context window
+- tool and structured-output capabilities
+- quality tier
+- latency tier
+- cost tier
+- deployment boundary
+- tenant allow or deny rules
+- safety or governance tags
 
-* complexity increases materially
-* modality changes
-* required capabilities change
-* policy constraints change
+This registry is the source of truth for model eligibility and ranking. It should be declarative so that new models can be added without rewriting routing logic.
 
-### 14.3 Downgrade Policy
+### Routing Pipeline
 
-A downgrade to a weaker model should be conservative and preferably occur only at a clean request boundary.
+The subsystem should process requests through the following pipeline.
 
-### 14.4 Session Metadata
+#### Step 1: Normalize Request
 
-The subsystem should accept at least:
+Transform the incoming API request into a canonical routing object.
 
-* `session_id`
-* `conversation_id`
-* `previous_model`
-* continuity hint
+#### Step 2: Build Routing Context
 
-The vLLM Semantic Router paper explicitly treats multi-turn statefulness and conversation-consistent model assignment as part of the routing system rather than an external concern. ([arXiv][2])
+Attach tenant metadata, user hints, session metadata, and route-control flags.
 
----
+#### Step 3: Extract Signals
 
-## 15. Output Contract
+Run the minimum set of signal extractors required for the current routing path.
 
-The Semantic Routing subsystem produces a **routing result**.
+#### Step 4: Filter Ineligible Models
 
-### 15.1 Required Output
+Remove models that cannot satisfy hard capability requirements or deployment constraints.
 
-* `model`: resolved target model identifier
+#### Step 5: Apply Policy Gates
 
-### 15.2 Optional Output
+Enforce tenant, privacy, safety, and governance rules before optimization begins.
 
-* `route_reason`
-* `route_policy`
-* `session_id`
-* `tenant_id`
-* `priority`
-* `policy_tags`
-* `debug_trace_id`
+#### Step 6: Optimize Among Eligible Candidates
 
-### 15.3 Example
+Rank or score remaining models according to configured routing objectives such as quality within budget or latency within policy.
+
+#### Step 7: Execute Routing Plugins
+
+Run decision-coupled plugins such as safety tagging, cache lookup, or augmentation triggers.
+
+#### Step 8: Enrich Request
+
+Write the final `model` value and any associated routing metadata to the request contract.
+
+#### Step 9: Emit Routing Trace
+
+Record enough trace information to explain the selected model and the discarded alternatives.
+
+### Decision Model
+
+Semantic Routing should make decisions in layers instead of one undifferentiated scoring pass.
+
+#### Hard Constraints
+
+Hard constraints determine whether a model can serve the request at all.
+
+Examples:
+
+- context window too small
+- missing modality support
+- model unavailable in the required deployment zone
+- tenant not permitted to use the model
+
+#### Policy Constraints
+
+Policy constraints determine whether a model may serve the request under governance rules.
+
+Examples:
+
+- private data must stay on approved infrastructure
+- regulated tenants may use only allowlisted providers
+- sensitive prompts may require hardened or audited models
+
+#### Optimization Criteria
+
+Optimization applies only after hard and policy constraints are satisfied.
+
+Examples:
+
+- maximize quality within budget
+- minimize latency within policy
+- preserve previous model when continuity is preferred
+- escalate only when current model is insufficient
+
+This sequence keeps routing behavior predictable and easier to explain.
+
+### Session and Multi-Turn Semantics
+
+Session continuity is important because users often expect stable behavior across turns.
+
+#### Session Continuity Goal
+
+The router should preserve the previous model when doing so remains semantically valid and operationally reasonable.
+
+#### Allowed Escalation
+
+The router may move to a stronger model if a new turn exceeds the capability or context limits of the previous model.
+
+#### Downgrade Policy
+
+Downgrades should be conservative. A lower-cost model should not replace a stronger model in the middle of a session unless policy explicitly allows it and the continuity cost is acceptable.
+
+#### Session Metadata
+
+Useful metadata includes:
+
+- session ID
+- previous model
+- last escalation reason
+- continuity preference
+- conversation classification history
+
+### Output Contract
+
+The output of Semantic Routing must be stable enough for downstream systems and operators to rely on it.
+
+#### Required Output
+
+The subsystem must always produce:
+
+- resolved `model`
+- request ID
+- route decision status
+
+#### Optional Output
+
+The subsystem may also produce:
+
+- route reason
+- policy tags
+- debug trace ID
+- continuity metadata
+- route confidence or ranking detail
+
+#### Example
 
 ```json
 {
   "model": "code-large",
-  "route_reason": "domain=code;complexity=high;policy=default",
-  "policy_tags": ["internal-ok", "safe"],
+  "route_reason": "domain=code;complexity=high;policy=allowed",
+  "policy_tags": ["tenant:default", "privacy:standard"],
   "messages": [
     {
       "role": "user",
-      "content": "Write a C epoll example with edge-triggered I/O."
+      "content": "Write a C epoll example"
     }
   ]
 }
 ```
 
-This output is the contract passed to `ASE Load Balancing Design`.
+### Explainability and Debuggability
 
----
+Routing decisions must be auditable after the fact.
 
-## 16. Explainability and Debuggability
+#### Required Debug Artifacts
 
-Semantic Routing must be explainable.
+The subsystem should retain or emit:
 
-### 16.1 Required Debug Artifacts
+- request ID
+- session ID when present
+- selected model
+- candidate set after eligibility filtering
+- reason codes for excluded models
+- final route reason
 
-The subsystem should be able to reconstruct:
+#### Reason Codes
 
-* extracted signals
-* candidate model set before filtering
-* filtered candidate set after constraints
-* applied policy rules
-* selected optimization objective
-* final model choice
-
-### 16.2 Reason Codes
-
-Every successful route should emit a concise reason code.
+Reason codes should separate structural causes from policy causes.
 
 Examples:
 
-* `code_high_complexity`
-* `long_context_private_only`
-* `structured_output_low_cost`
-* `policy_denied_external_provider`
+- `context_too_small`
+- `modality_unsupported`
+- `tenant_not_allowed`
+- `private_boundary_required`
+- `quality_preferred`
+- `session_continuity_preserved`
 
-### 16.3 Debug Mode
+#### Debug Mode
 
-A debug mode may return routing diagnostics in a side channel or response extension, but should not expose sensitive internal policy details by default.
+ASE may expose a controlled debug mode for trusted callers or operators, but it must not leak internal policy logic or sensitive model metadata to untrusted users.
 
-The emphasis on structured decision composition in vLLM Semantic Router makes this style of explanation natural, because the architecture is rule- and signal-based rather than a single opaque classifier. ([arXiv][2])
+### Failure Semantics
 
----
+Semantic Routing should classify failures precisely.
 
-## 17. Failure Semantics
+#### No Eligible Model
 
-Semantic failures should be distinguished from infrastructure failures.
+No model satisfies the hard capability or deployment constraints.
 
-### 17.1 No Eligible Model
+#### Policy Denial
 
-Occurs when no model satisfies hard capability constraints.
+At least one technically capable model exists, but policy or governance rules forbid all of them for this request.
 
-### 17.2 Policy Denial
+#### Invalid Routing Request
 
-Occurs when the request is disallowed by governance or safety policy.
+The request is malformed or missing routing-relevant metadata needed for evaluation.
 
-### 17.3 Invalid Routing Request
+#### Decision Engine Failure
 
-Occurs when the request is malformed or missing required routing inputs.
+The routing subsystem itself fails unexpectedly while processing the request.
 
-### 17.4 Decision Engine Failure
+#### Deferred Infrastructure Failure
 
-Occurs when internal routing execution fails unexpectedly.
+Semantic Routing may succeed but downstream dispatch may still fail later. This is not a Semantic Routing failure and should be classified separately by Load Balancing.
 
-### 17.5 Deferred Infrastructure Failure
+### Observability
 
-If a valid model is selected but no serving instance is later available, that is **not** a Semantic Routing failure. It belongs to Load Balancing.
+Semantic Routing should expose first-class metrics, logs, and trace fields.
 
-This distinction should be preserved in logs, metrics, and error responses.
+#### Core Metrics
 
----
+- routing decision count
+- selected-model distribution
+- no-eligible-model count
+- policy-denial count
+- signal extraction latency
+- total routing latency
+- session continuity preservation count
+- escalation count
 
-## 18. Observability
+#### Optional Metrics
 
-The Semantic Routing subsystem should emit observability signals at the routing layer.
+- per-signal extractor latency
+- model-rank frequency
+- debug-mode usage
+- plugin execution frequency
 
-### 18.1 Core Metrics
+#### Audit Log Fields
 
-* routing requests total
-* routing success total
-* routing denial total
-* no-eligible-model total
-* route distribution by model
-* route distribution by tenant
-* route distribution by policy
-* routing decision latency
+- request ID
+- tenant ID
+- session ID
+- selected model
+- route reason
+- policy tags
+- failure code when applicable
 
-### 18.2 Optional Metrics
-
-* signal extraction latency by signal type
-* percentage of requests requiring expensive ML signals
-* escalation rate across model tiers
-* session model-switch rate
-
-### 18.3 Audit Log Fields
-
-Recommended audit fields:
-
-* request ID
-* tenant ID
-* session ID
-* selected model
-* route reason
-* policy tags
-* failure code if any
-
----
-
-## 19. Configuration Model
+### Configuration Model
 
 The subsystem should be configured through declarative policy rather than code changes.
 
-### 19.1 Configuration Domains
+#### Configuration Domains
 
-* model registry
-* signal extractors
-* policy rules
-* optimization objective
-* session continuity policy
-* plugin chain bindings
-* debug verbosity
+- model registry
+- signal extractors
+- policy rules
+- optimization objectives
+- session continuity policy
+- plugin-chain bindings
+- debug verbosity
 
-### 19.2 Example Logical Structure
+#### Example Logical Structure
 
 ```yaml
 semantic_routing:
@@ -683,43 +570,25 @@ semantic_routing:
       allowed_models: [reasoning-private-long]
 ```
 
-The vLLM Semantic Router paper goes further and describes a typed neural-symbolic DSL compiled to multiple deployment targets, with configuration-first adaptation across deployment scenarios. ASE does not need to copy that exact mechanism, but the underlying principle—**configuration-first routing policy**—is highly applicable. ([arXiv][2])
+The exact configuration DSL does not need to match any external system, but the principle should remain the same: routing policy must be declarative, reviewable, and versioned.
 
----
+### Security and Governance Considerations
 
-## 20. Security and Governance Considerations
-
-Semantic Routing is one of the earliest policy enforcement points in the LLM path and therefore must be treated as a governance boundary.
+Semantic Routing is one of the earliest enforcement points in the LLM request path and should therefore be treated as a governance boundary.
 
 It should support at least:
 
-* authorization-aware model restrictions
-* deployment-boundary restrictions
-* PII-sensitive routing
-* jailbreak-sensitive routing
-* tenant-specific provider restrictions
-* audit tagging for regulated traffic
+- authorization-aware model restrictions
+- deployment-boundary restrictions
+- PII-sensitive routing
+- jailbreak-sensitive routing
+- tenant-specific provider restrictions
+- audit tagging for regulated traffic
 
-The paper explicitly integrates authorization, privacy, safety, PII, and hallucination-related controls into the routing framework, reinforcing that this layer is not merely about convenience but about policy-safe model selection. ([arXiv][1])
+These controls are part of the design, not optional add-ons, because they determine whether a request may be sent to a model at all.
 
----
+## References
 
-## 21. Summary
-
-ASE Semantic Routing is the subsystem responsible for **request-level model selection**.
-
-It operates as the first decision layer in the ASE gateway and is responsible for:
-
-* extracting routing-relevant signals,
-* filtering models by capability and policy,
-* selecting the most appropriate eligible model,
-* enforcing pre-invocation policy controls,
-* enriching the request with an authoritative `model` field,
-* and producing explainable routing outcomes.
-
-This subsystem is inspired by the signal-driven, composable architecture of **vLLM Semantic Router**, especially its use of heterogeneous signal extraction, Boolean decision evaluation, per-decision plugin chains, and multi-turn routing support. ASE adapts those principles into an enterprise gateway setting with a strict handoff to the downstream Load Balancing layer. ([arXiv][1])
-
-The next document in the series, `ASE Load Balancing Design`, specifies how ASE schedules requests across serving instances **after** the Semantic Routing layer has resolved the target model.
-
-[1]: https://arxiv.org/abs/2603.04444?utm_source=chatgpt.com "vLLM Semantic Router: Signal Driven Decision Routing for Mixture-of-Modality Models"
-[2]: https://arxiv.org/pdf/2603.04444 "vLLM Semantic Router: Signal Driven Decision Routing for Mixture-of-Modality Models"
+- [R1] `overview.md`, ASE LLM Gateway Architecture Overview
+- [R2] `load_balancer.md`, ASE Load Balancing Design
+- [R3] vLLM Semantic Router: Signal Driven Decision Routing for Mixture-of-Modality Models, https://arxiv.org/abs/2603.04444

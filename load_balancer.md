@@ -1,706 +1,551 @@
 # ASE Load Balancing Design
 
-## Document Status
+## Introduction
 
-* **Document ID**: ASE-LLM-LOAD-BALANCING
-* **Document Type**: Subsystem Design
-* **Intended Audience**: Platform architects, gateway engineers, inference platform engineers, SREs, operations teams
-* **Scope Level**: Detailed subsystem design
-* **Related Documents**:
+This document defines the design of the Load Balancing subsystem in the ASE LLM gateway. Load Balancing is the second decision layer in the request path and is responsible for choosing which backend instance should execute a request whose target model has already been resolved.
 
-  * `ASE LLM Gateway Architecture Overview`
-  * `ASE Semantic Routing Design`
+Its input is an enriched request that already contains an authoritative `model` assignment from Semantic Routing. Its output is a selected backend endpoint plus the dispatch behavior needed to execute the request reliably.
 
----
+This document focuses only on instance-level dispatch after model selection. It does not define prompt interpretation, semantic model choice, or policy logic that belongs to `ASE_Semantic_routing.md`.
 
-## 1. Introduction
+## Background
 
-This document specifies the design of the **Load Balancing** subsystem in the ASE LLM gateway.
-
-The role of Load Balancing is to determine **which backend instance should execute a request whose target model has already been resolved**. This subsystem operates strictly after Semantic Routing. It does not interpret prompt semantics, classify tasks, or decide which model should be used. Instead, it takes an authoritative `model` assignment from the upstream Semantic Routing layer, resolves the corresponding backend pool, and dispatches the request to an eligible instance according to runtime system state and reliability policy.
-
-The design of this subsystem follows established load-balancer engineering practice rather than semantic decision logic. Professional systems such as NGINX document core upstream balancing methods including round robin, least connections, IP hash, and generic hash, while HAProxy documents active health checks, bounded retries, and redispatch as standard mechanisms for resilient traffic distribution. ASE uses these mature concepts as the basis for its second-layer design. ([NGINX Docs][1])
-
----
-
-## 2. Scope
-
-### 2.1 In Scope
-
-This document covers:
-
-* model-pool resolution
-* endpoint discovery and eligibility
-* instance scheduling
-* health-aware request dispatch
-* retry and redispatch control
-* draining and recovery behavior
-* affinity and stickiness policies
-* runtime metrics ingestion for scheduling
-* load-balancing observability
-
-### 2.2 Out of Scope
-
-This document does **not** define:
-
-* semantic model selection
-* prompt classification
-* policy-driven model choice
-* safety-based model restriction
-* route hints based on task semantics
-* plugin logic tied to Semantic Routing
-
-Those concerns belong to `ASE Semantic Routing Design`.
-
----
-
-## 3. Problem Definition
+### Problem Definition
 
 Load Balancing solves the following problem:
 
-> Given a request with an already-resolved target model, and a set of backend endpoints capable of serving that model, select the best execution target while preserving availability, stability, and service efficiency.
+> Given a request with an already resolved target model, and a set of backend endpoints capable of serving that model, select the best execution target while preserving availability, stability, and service efficiency.
 
-This is an **instance-selection** problem, not a **model-selection** problem.
+This is an instance-selection problem, not a model-selection problem.
 
-The subsystem must work correctly under:
+The subsystem must operate correctly under conditions such as:
 
-* partial backend failures
-* overloaded endpoints
-* heterogeneous pools
-* streaming requests with variable lifetimes
-* uneven request sizes
-* mixed internal and external serving targets
-* incomplete or heterogeneous backend metrics support
+- partial backend failures
+- overloaded endpoints
+- uneven request sizes
+- long-lived streaming requests
+- mixed internal and external backends
+- heterogeneous observability support across serving systems
 
-This distinction is important. The vLLM metrics documentation explicitly separates server-level metrics from request-level metrics and exposes them through Prometheus-oriented `/metrics` endpoints, which is exactly the kind of runtime state a Load Balancing layer should consume after the model has already been selected. ([vLLM][2])
+### Why Load Balancing Is a Separate Layer
 
----
+Once the model has already been selected, the remaining problem is traffic engineering. The load balancer should reason about runtime state such as endpoint health, in-flight requests, queue pressure, locality, retries, and failover. It should not reinterpret prompt semantics or silently change the selected model under normal operation.
 
-## 4. Design Goals
+Keeping this behavior in a separate layer provides clear accountability:
 
-### 4.1 Correct Instance Selection
+- Semantic Routing owns model choice.
+- Load Balancing owns endpoint choice.
 
-The subsystem should always dispatch only to endpoints that are eligible to serve the selected model.
+### Design Goals
 
-### 4.2 Availability and Reliability
+The Load Balancing subsystem is designed to satisfy the following goals:
 
-The subsystem should route around unhealthy, overloaded, or administratively drained endpoints.
+- dispatch only to endpoints that are eligible to serve the selected model
+- route around unhealthy, overloaded, or drained endpoints
+- keep recovery behavior bounded and predictable
+- keep scheduling overhead low enough for every request path
+- preserve a strict separation from semantic decision making
+- support heterogeneous backends with different runtime telemetry quality
 
-### 4.3 Operational Stability
+### Design Principles
 
-The subsystem should avoid amplifying failures through unbounded retries, unstable stickiness, or indiscriminate redispatch.
+The subsystem follows these design principles:
 
-### 4.4 Low Scheduling Overhead
+- instance-centric rather than model-centric decision making
+- evaluate hard eligibility and health before optimizing for throughput
+- apply constraint filtering before scheduling
+- keep retries, redispatch, and failover explicit and finite
+- treat affinity as a preference rather than an absolute
+- use metrics when available without depending on one backend-specific telemetry format
 
-Instance selection should be efficient enough to sit in the request path for all traffic.
+ASE draws on mature load-balancer practice for this layer, especially the scheduling vocabulary used by NGINX and the health, retry, and redispatch controls described in HAProxy documentation. Runtime telemetry from systems such as vLLM can be incorporated when available. See [R3], [R4], and [R5].
 
-### 4.5 Clear Separation from Semantic Routing
+## Scope
 
-The subsystem should never reinterpret request meaning under normal operation.
+### In Scope
 
-### 4.6 Backend Heterogeneity Tolerance
+This document covers:
 
-The subsystem should support a mix of internal inference servers, external APIs, and backends with different observability capabilities.
+- model-pool resolution
+- endpoint discovery and eligibility evaluation
+- health-aware instance scheduling
+- request dispatch
+- retry, redispatch, and bounded failover
+- draining and recovery behavior
+- affinity and stickiness policy
+- runtime metrics ingestion for scheduling
+- load-balancing observability
+- configuration and operational considerations for dispatch
 
----
+### Out of Scope
 
-## 5. Non-Goals
+This document does not define:
 
-The subsystem is not intended to:
+- semantic model selection
+- prompt classification
+- policy-driven model choice
+- safety-based model restriction at the semantic layer
+- plugin logic tied to semantic decision making
 
-* infer task intent from prompts
-* choose between model families based on semantics
-* replace semantic routing
-* enforce high-level business policy that belongs in Layer 1
-* perform prompt-level reasoning
-* decide quality-versus-cost trade-offs across different models under normal operation
+Those concerns belong to `ASE_Semantic_routing.md`.
 
----
+## Design
 
-## 6. Architectural Position
+### Architectural Position
 
-Within the ASE gateway, Load Balancing is the **second decision layer** in the request path.
+Load Balancing is the second decision layer in the ASE request path:
 
-**Client Request -> Semantic Routing -> Request Enrichment (`model=...`) -> Load Balancing -> Selected Backend Instance**
+`Client Request -> Semantic Routing -> Request Enrichment (model=...) -> Load Balancing -> Selected Backend Instance`
 
-The subsystem assumes that the upstream Semantic Routing layer has already produced an authoritative model assignment.
+Its contract is:
 
-Its contract is therefore:
+- input: request with resolved `model`
+- output: selected backend endpoint capable of serving that model
 
-* input: request with resolved `model`
-* output: selected endpoint capable of serving that model
+Load Balancing may choose the serving instance, but it may not change the semantic model assignment under normal operation.
 
-The subsystem must preserve the following rule:
+### Internal Architecture
 
-> Load Balancing may choose the serving instance, but it may not change the semantic model assignment under normal operation.
+The subsystem is composed of six logical components.
 
----
+#### Pool Resolver
 
-## 7. Design Principles
-
-### 7.1 Instance-Centric, Not Model-Centric
-
-This subsystem schedules instances inside a model pool. It does not choose the model.
-
-### 7.2 Health Before Throughput
-
-Unavailable or unstable endpoints must be excluded before optimization among healthy candidates.
-
-### 7.3 Constraint-Then-Scheduling
-
-The scheduler should first determine which endpoints are eligible, then select among them.
-
-### 7.4 Bounded Recovery Semantics
-
-Retries, redispatches, and failover must be policy-controlled and finite. HAProxy documents retries and redispatch as configurable mechanisms rather than open-ended behavior, which aligns with this principle. ([HAProxy Technologies][3])
-
-### 7.5 Affinity as a Preference, Not an Absolute
-
-Stickiness should improve locality where useful, but should not override availability.
-
-### 7.6 Metrics-Aware but Metrics-Portable
-
-The subsystem should use rich backend metrics when available, but must still function when only basic health and latency signals are exposed.
-
----
-
-## 8. Internal Architecture
-
-The Load Balancing subsystem is composed of six logical components.
-
-### 8.1 Pool Resolver
-
-Maps the resolved `model` field to a backend pool definition.
+This component maps the resolved `model` field to a backend pool definition.
 
 Responsibilities:
 
-* model-to-pool lookup
-* pool membership retrieval
-* endpoint metadata loading
-* priority and weight loading
+- model-to-pool lookup
+- pool membership retrieval
+- endpoint metadata loading
+- priority and weight loading
 
-### 8.2 Endpoint Registry
+#### Endpoint Registry
 
-Maintains the set of known endpoints and their metadata.
-
-Responsibilities:
-
-* endpoint identity
-* endpoint address and protocol
-* model affinity
-* deployment type
-* configured weight
-* locality metadata
-* drain status
-
-### 8.3 Health Manager
-
-Tracks operational state for each endpoint.
+This component maintains the set of known endpoints and their static metadata.
 
 Responsibilities:
 
-* active health-check results
-* passive failure observations
-* down/degraded/up state
-* drain state
-* recovery transition control
+- endpoint identity
+- address and protocol metadata
+- supported model mapping
+- deployment type
+- configured weight
+- locality metadata
+- drain status
 
-HAProxy’s reliability documentation describes active health checks as periodic tests that can remove failing servers from rotation and restore them after sufficient successful checks, which is the right foundation for ASE’s health manager. ([HAProxy Technologies][4])
+#### Health Manager
 
-### 8.4 Scheduler
-
-Selects one eligible endpoint for a request.
-
-Responsibilities:
-
-* apply scheduling policy
-* enforce affinity if appropriate
-* select endpoint among healthy candidates
-* support fallback ordering
-
-NGINX documents a standard set of upstream scheduling primitives—round robin, least connections, IP hash, and generic hash—which serve as the natural baseline scheduling vocabulary for ASE. ([NGINX Docs][1])
-
-### 8.5 Reliability Controller
-
-Applies dispatch-time reliability policy.
+This component tracks the operational state of each endpoint.
 
 Responsibilities:
 
-* connect-time retry control
-* redispatch control
-* failure classification
-* failover policy
-* recovery suppression for unstable endpoints
+- active health-check results
+- passive failure observations
+- endpoint state transitions such as `up`, `degraded`, `down`, and `draining`
+- recovery gating for unstable endpoints
 
-HAProxy documents retries and redispatches as mechanisms to reconnect after failed connections or resend after failed HTTP requests, but as explicitly configured behavior rather than implicit unlimited recovery. ASE adopts the same principle. ([HAProxy Technologies][3])
+#### Scheduler
 
-### 8.6 Metrics Adapter
-
-Normalizes runtime signals from different backend types.
+This component selects a single eligible endpoint for a request.
 
 Responsibilities:
 
-* ingest generic health and latency telemetry
-* ingest backend-native metrics if available
-* normalize metrics for scheduling decisions
-* expose scheduler-facing runtime state
+- apply scheduling policy
+- enforce affinity when appropriate
+- select among healthy candidates
+- support fallback ordering
 
-vLLM documents `/metrics` on the OpenAI-compatible API server and categorizes telemetry into server-level and request-level metrics, which is directly relevant to this component. ([vLLM][2])
+#### Reliability Controller
 
----
+This component applies dispatch-time reliability behavior.
 
-## 9. Backend Pool Model
+Responsibilities:
 
-### 9.1 Logical Pooling
+- classify dispatch failures
+- apply connect-time retry policy
+- control redispatch
+- enforce bounded failover
+- suppress unstable endpoints when required
 
-Each routable model maps to a **logical backend pool**.
+#### Metrics Adapter
 
-Examples:
+This component normalizes runtime signals from different backend types.
 
-* `general-small` -> Pool A
-* `code-small` -> Pool B
-* `code-large` -> Pool C
-* `reasoning-large` -> Pool D
+Responsibilities:
 
-The Load Balancing subsystem may only schedule a request to an endpoint belonging to the pool associated with the resolved `model`.
+- ingest generic health and latency telemetry
+- ingest backend-native metrics when available
+- normalize scheduler-facing runtime state
+- expose a consistent metrics interface to the scheduler
 
-### 9.2 Pool Membership
+### Backend Pool Model
 
-Each pool entry should define at least:
+Load Balancing should schedule within logical pools associated with the selected model.
 
-* endpoint ID
-* network address
-* protocol type
-* backend type
-* assigned model or model family
-* weight
-* priority tier
-* drain flag
-* locality zone
-* health state
+#### Logical Pooling
 
-### 9.3 Pool Types
-
-ASE should support at least three pool types:
-
-* **homogeneous internal pool**
-  multiple replicas of the same internal serving stack
-
-* **heterogeneous internal pool**
-  same logical model served by different inference platforms
-
-* **external provider pool**
-  multiple remote endpoints or provider regions serving the same logical model contract
-
-This keeps the subsystem deployment-agnostic.
-
----
-
-## 10. Scheduling Inputs
-
-The scheduler consumes four classes of inputs.
-
-### 10.1 Static Inputs
+Each routable model maps to a logical backend pool.
 
 Examples:
 
-* resolved model
-* endpoint weight
-* endpoint priority
-* deployment zone
-* affinity configuration
-* drain flag
+- `general-small` -> Pool A
+- `code-large` -> Pool B
+- `reasoning-private-long` -> Pool C
 
-### 10.2 Health Inputs
+This keeps Load Balancing focused on the endpoints that can actually serve the resolved model.
 
-Examples:
+#### Pool Membership
 
-* active health-check result
-* recent connect failures
-* recent timeout failures
-* backend disabled state
+Each pool should define at least:
 
-### 10.3 Runtime Load Inputs
+- endpoint IDs
+- addresses and protocols
+- weights
+- supported deployment zones
+- endpoint priority
+- external or internal backend type
 
-Examples:
+#### Pool Types
 
-* active in-flight requests
-* queue depth if exposed
-* observed latency
-* timeout rate
-* recent success/error ratio
+ASE should support more than one kind of pool:
 
-### 10.4 Affinity Inputs
+- homogeneous internal pools
+- heterogeneous internal pools with weighted balancing
+- external provider pools
+- hybrid fallback pools
+- compliance-scoped pools restricted by region or tenant
 
-Examples:
+### Scheduling Inputs
 
-* session ID
-* conversation ID
-* sticky key
-* locality hint
-* prefix-affinity tag
+The scheduler should reason over multiple input classes.
 
----
+#### Static Inputs
 
-## 11. Scheduling Pipeline
-
-ASE Load Balancing should execute the following pipeline.
-
-### Step 1: Resolve Pool
-
-Read the authoritative `model` field and identify the corresponding backend pool.
-
-### Step 2: Build Candidate Set
-
-Load the set of endpoints registered for that model.
-
-### Step 3: Apply Hard Exclusions
-
-Remove endpoints that are:
-
-* down
-* administratively disabled
-* draining
-* protocol-incompatible
-* explicitly excluded by pool policy
-
-### Step 4: Apply Affinity Preference
-
-If stickiness is enabled and a preferred endpoint is healthy, treat it as a preferred candidate.
-
-### Step 5: Apply Scheduling Algorithm
-
-Select the endpoint according to the configured algorithm.
-
-### Step 6: Dispatch
-
-Forward the request to the selected endpoint.
-
-### Step 7: Observe Outcome
-
-Record latency, success/failure, retry behavior, and any redispatch events.
-
-### Step 8: Update Runtime State
-
-Feed the dispatch outcome back into endpoint health and scheduling state.
-
----
-
-## 12. Supported Scheduling Algorithms
-
-ASE should support a small, professional set of scheduling modes.
-
-### 12.1 Round Robin / Weighted Round Robin
-
-Round robin is the baseline algorithm for homogeneous pools. NGINX documents round robin as the default balancing method and supports weights for uneven capacity. ([NGINX Docs][1])
-
-Recommended use:
-
-* homogeneous replicas
-* low-variance request sizes
-* simple internal pools
-* initial deployments
-
-### 12.2 Least Connections / Least In-Flight
-
-NGINX documents least connections as a standard method that selects the server with the fewest active connections. In ASE, this should be interpreted more generally as **least in-flight requests** for long-lived inference traffic, especially streaming responses. ([NGINX Docs][1])
-
-Recommended use:
-
-* chat completions
-* streaming responses
-* variable-length request lifetimes
-* interactive inference
-
-### 12.3 Hash / Affinity-Based Routing
-
-NGINX documents IP hash and generic hash as affinity-oriented methods. ASE should adapt this idea to application-level keys such as `session_id`, `conversation_id`, or other stable request affinity keys rather than relying on raw client IP. ([NGINX Docs][1])
-
-Recommended use:
-
-* multi-turn sessions
-* locality-sensitive workloads
-* deployments where continuity matters
-* cache-friendly serving environments
-
-### 12.4 Priority and Weighted Failover
-
-ASE should support primary and backup endpoint classes or weighted preference tiers. This is especially important for mixed deployments where some endpoints are premium, internal, lower-latency, or policy-preferred.
-
-Recommended use:
-
-* private-first routing with external fallback
-* regional preference
-* premium hardware preference
-* controlled degradation modes
-
-### 12.5 Metrics-Aware Scheduling
-
-When backends expose sufficient telemetry, ASE may layer runtime-aware policies on top of the baseline algorithms.
+These do not change frequently.
 
 Examples:
 
-* least queue depth
-* lowest recent latency
-* queue-and-weight hybrid
-* overload-avoidance scheduling
+- selected model
+- pool membership
+- configured weights
+- endpoint locality
+- affinity rules
+- endpoint priority
 
-This is an ASE design extension rather than a direct requirement from traditional LB documentation.
+#### Health Inputs
 
----
+These describe endpoint serviceability.
 
-## 13. Health Model
+Examples:
 
-### 13.1 Endpoint States
+- active health-check status
+- passive failure rate
+- circuit-open state
+- drain state
 
-Each endpoint should be represented by one of the following states:
+#### Runtime Load Inputs
 
-* **UP**
-  Eligible for normal scheduling
+These describe current execution pressure.
 
-* **DEGRADED**
-  Eligible but weight-reduced
+Examples:
 
-* **DRAINING**
-  No new requests accepted; existing traffic allowed to complete
+- in-flight requests
+- queue depth
+- observed latency
+- token throughput
+- rate-limit status
+- cache pressure when available
 
-* **DOWN**
-  Removed from scheduling
+#### Affinity Inputs
 
-### 13.2 Active Health Checks
+These preserve useful locality when possible.
 
-The subsystem should support active probes for:
+Examples:
 
-* TCP connect success
-* HTTP readiness endpoint
-* model-serving API readiness
-* optional lightweight inference probe for high-assurance deployments
+- session ID
+- conversation ID
+- tenant ID
+- sticky key derived from request metadata
 
-HAProxy’s documentation describes active health checks with failure and recovery thresholds, which matches the operational behavior ASE should adopt. ([HAProxy Technologies][4])
+### Scheduling Pipeline
 
-### 13.3 Passive Health Signals
+Requests should move through the following scheduling pipeline.
 
-The subsystem should also downgrade endpoints based on observed runtime failures, such as:
+#### Step 1: Resolve Pool
 
-* repeated connect failures
-* repeated timeout failures
-* repeated 5xx responses
-* sustained elevated latency
+Read the resolved `model` field and map it to a backend pool.
 
-### 13.4 Recovery Policy
+#### Step 2: Build Candidate Set
 
-Recovered endpoints should not necessarily receive full traffic immediately. ASE should support staged re-entry through reduced weight or temporary degraded status, even if the specific control knob differs by deployment.
+Load all endpoints that belong to the selected pool.
 
----
+#### Step 3: Apply Hard Exclusions
 
-## 14. Retry, Redispatch, and Failover
+Remove endpoints that are down, draining, disallowed by locality or policy, or otherwise ineligible.
 
-### 14.1 Retry Principle
+#### Step 4: Apply Affinity Preference
 
-Retries must be **bounded**, **failure-class-aware**, and **safe for the request state**.
+If stickiness is enabled, prefer the previously associated endpoint when it remains healthy and eligible.
 
-HAProxy documents retries as a controlled feature and describes redispatch as a way to send a failed request attempt to another server when appropriate. ([HAProxy Technologies][3])
+#### Step 5: Apply Scheduling Algorithm
 
-### 14.2 Safe Retry Cases
+Select the best endpoint among the remaining candidates using the configured algorithm and runtime state.
 
-ASE should allow retry primarily for:
+#### Step 6: Dispatch
 
-* connection establishment failure
-* early transport failure
-* backend unreachable before request execution
-* request not yet materially streamed
+Forward the request to the chosen endpoint.
 
-### 14.3 Unsafe Retry Cases
+#### Step 7: Observe Outcome
 
-ASE should avoid blind retry for:
+Record whether the attempt succeeded, failed before execution, or failed after dispatch began.
 
-* partially streamed responses
-* requests with uncertain backend execution state
-* non-idempotent upstream side effects
-* repeated application-layer failures that indicate semantic or backend correctness problems
+#### Step 8: Update Runtime State
 
-### 14.4 Redispatch Policy
+Feed the observed outcome back into health, reliability, and metrics systems.
 
-If the selected endpoint fails in a retryable way before execution becomes committed, ASE may redispatch to another healthy endpoint in the same pool.
+### Supported Scheduling Algorithms
 
-### 14.5 Escalation to Higher-Level Failure
+ASE should support multiple algorithms because no single policy fits every serving stack.
 
-If retries are exhausted or no healthy candidates remain, the subsystem should emit an infrastructure failure rather than silently mutating the model decision.
+#### Round Robin and Weighted Round Robin
 
----
+These are suitable for simpler or more homogeneous pools where load is relatively even and minimal scheduling overhead is desired.
 
-## 15. Affinity and Stickiness
+#### Least Connections and Least In-Flight
 
-### 15.1 Purpose
+These are better suited for variable request durations and long-lived streaming traffic because they react to concurrency rather than just request count.
 
-Affinity improves continuity and locality. In ASE, affinity is used for:
+#### Hash and Affinity-Based Routing
 
-* multi-turn session continuity
-* operational locality
-* stable request placement
-* optional cache locality
+These are useful when cache locality, session continuity, or backend warm state matters more than perfect short-term fairness.
 
-### 15.2 Affinity Keys
+#### Priority and Weighted Failover
 
-Recommended keys:
+These support preferred pools or endpoints with backup ordering when the primary set is unavailable or degraded.
 
-* `session_id`
-* `conversation_id`
-* `tenant_id + session_id`
-* request-specific stable routing key
+#### Metrics-Aware Scheduling
 
-### 15.3 Affinity Rule
+These strategies incorporate telemetry such as queue depth, latency, token pressure, or cache state when the backend exposes reliable metrics.
 
-Affinity should be treated as **preferred placement**, not an unconditional requirement.
+The initial ASE deployment can start with weighted round robin or least in-flight and later evolve toward richer metrics-aware policies without changing the layer boundary.
 
-If the sticky endpoint is:
+### Health Model
 
-* healthy and schedulable -> prefer it
-* degraded but still usable -> optionally reduce preference
-* down or draining -> ignore stickiness and reschedule elsewhere
+Endpoint health should be modeled explicitly rather than inferred ad hoc during dispatch.
 
-### 15.4 Consistent Placement
+#### Endpoint States
 
-When consistent placement is desired, ASE may use consistent-hash-style routing over the affinity key so that endpoint membership changes minimize remapping. NGINX documents generic hash and consistent hash configuration in its broader load-balancing materials, which provides a sound implementation reference. ([NGINX Docs][5])
+Recommended states include:
 
----
+- `up`
+- `degraded`
+- `down`
+- `draining`
 
-## 16. Metrics and Runtime State
+Each state should have clear scheduling semantics so that operators can predict how traffic will move during incidents and maintenance.
 
-### 16.1 Generic Metrics
+#### Active Health Checks
 
-The subsystem should ingest:
+Active checks are periodic probes used to detect connectivity or service-level failure before user traffic is affected.
 
-* request rate
-* active request count
-* success rate
-* timeout rate
-* error rate
-* observed latency
-* recent dispatch failures
+Typical uses:
 
-### 16.2 Backend-Native Metrics
+- remove failed endpoints from rotation
+- validate recovery before re-entry
+- distinguish transient network issues from prolonged unavailability
 
-When available, ASE should also ingest backend-specific metrics. vLLM documents `/metrics` and distinguishes between:
+#### Passive Health Signals
 
-* **server-level metrics** for engine state and performance
-* **request-level metrics** for timing and request characteristics ([vLLM][2])
+Passive signals come from live request outcomes.
 
-Examples of relevant backend-native signals include:
+Examples:
 
-* running requests
-* waiting requests
-* request latency histograms
-* token-throughput indicators
-* backend resource pressure
+- connection failures
+- timeout rate
+- HTTP failure classes
+- abrupt stream termination
 
-### 16.3 Metrics Portability Principle
+Passive signals help the balancer react faster than active checks alone.
 
-Not all backends expose the same telemetry model. Therefore, ASE should normalize metrics into two classes:
+#### Recovery Policy
 
-* **required scheduler signals**
-  health, recent latency, failure rate, active requests
+Recovered endpoints should not immediately receive full traffic. Gradual re-entry or controlled reinstatement is preferable when an endpoint has recently been unstable.
 
-* **optional enhanced scheduler signals**
-  queue depth, backend-native request state, token-processing counters
+### Retry, Redispatch, and Failover
 
-This keeps Load Balancing portable across serving stacks.
+Reliability behavior must be explicit and bounded.
 
----
+#### Retry Principle
 
-## 17. Failure Semantics
+Retries should be finite and policy-controlled. Unlimited or ambiguous retries create duplicate work, unstable latency, and hard-to-debug failure patterns.
 
-Load Balancing failures should be clearly separated from Semantic Routing failures.
+#### Safe Retry Cases
 
-### 17.1 No Eligible Endpoint
+Retries are typically safe when failure occurs before the backend begins executing the request, such as:
 
-A model was selected successfully, but no endpoint in the corresponding pool is eligible.
+- connection failure
+- TLS setup failure
+- immediate admission rejection before execution
 
-### 17.2 Dispatch Failure
+#### Unsafe Retry Cases
 
-An endpoint was selected, but request dispatch failed before stable execution.
+Retries are typically unsafe when execution may already have started, such as:
 
-### 17.3 Retry Exhaustion
+- partial streamed responses
+- ambiguous upstream timeout after possible execution
+- side effects triggered through tools or external systems
 
-Retryable failures occurred, but recovery attempts were exhausted.
+#### Redispatch Policy
 
-### 17.4 Pool Unavailable
+When retry is allowed, ASE may redispatch to a different endpoint in the same pool if policy permits and another healthy candidate exists.
 
-The target model pool exists, but all endpoints are down or draining.
+#### Escalation to Higher-Level Failure
 
-### 17.5 Why This Matters
+If retries and redispatch are exhausted, the subsystem should emit a clear infrastructure failure rather than silently collapsing the error into a semantic routing problem.
 
-This failure model allows ASE to expose precise infrastructure outcomes such as:
+### Affinity and Stickiness
 
-* `model_resolved_no_healthy_backend`
-* `dispatch_failed_connect_timeout`
-* `retry_exhausted_same_pool`
-* `pool_unavailable_all_draining`
+Affinity can improve locality and user experience but should remain subordinate to availability.
 
-These are operationally far more useful than a generic “routing failed”.
+#### Purpose
 
----
+Stickiness can preserve:
 
-## 18. Observability
+- session continuity
+- prefix-cache locality
+- backend warm state
+- tenant or conversation locality
 
-### 18.1 Core Metrics
+#### Affinity Keys
 
-The Load Balancing subsystem should emit at least:
+Useful keys include:
 
-* requests dispatched total
-* dispatches by model pool
-* dispatches by endpoint
-* scheduler latency
-* retries total
-* redispatches total
-* health-state transitions
-* pool unavailable events
-* no-eligible-endpoint events
+- session ID
+- conversation ID
+- tenant ID
+- request-class hash
 
-### 18.2 Recommended Dashboards
+#### Affinity Rule
 
-Operations should be able to view:
+Affinity should be treated as a preference. If the preferred endpoint is unhealthy, drained, or overloaded beyond policy, the scheduler should select another candidate rather than forcing a bad placement.
 
-* per-pool request volume
-* per-endpoint health state
-* per-endpoint latency
-* retry and redispatch rates
-* error distribution by backend
-* drain state distribution
+#### Consistent Placement
 
-### 18.3 Trace Fields
+Consistent hashing or deterministic sticky mapping may be used where stable placement matters more than perfect traffic spread.
 
-Recommended trace fields:
+### Metrics and Runtime State
 
-* request ID
-* resolved model
-* resolved pool
-* selected endpoint
-* scheduling algorithm
-* retry count
-* redispatch count
-* final dispatch outcome
+The scheduler should be able to work with both generic and backend-native telemetry.
 
-HAProxy’s monitoring materials explicitly surface retries and redispatches as meaningful operational counters, reinforcing that these should be first-class observability fields in ASE as well. ([HAProxy Technologies][6])
+#### Generic Metrics
 
----
+Metrics that should be usable across backend types include:
 
-## 19. Configuration Model
+- endpoint health state
+- request latency
+- in-flight requests
+- error rate
+- timeout rate
+- dispatch success rate
+
+#### Backend-Native Metrics
+
+When available, ASE may incorporate richer signals such as:
+
+- queue depth
+- token throughput
+- GPU utilization
+- KV cache usage
+- prefix-cache hit potential
+
+vLLM-style metrics endpoints are especially useful for this class of runtime-aware scheduling. See [R5].
+
+#### Metrics Portability Principle
+
+ASE should benefit from rich telemetry without depending on one serving stack. If advanced metrics are unavailable, the subsystem must still function correctly using generic health and latency signals.
+
+### Failure Semantics
+
+Load Balancing should classify failures based on dispatch stage.
+
+#### No Eligible Endpoint
+
+The selected model resolves to a pool, but no endpoint is currently eligible to serve the request.
+
+#### Dispatch Failure
+
+The chosen endpoint was eligible, but the immediate dispatch attempt failed.
+
+#### Retry Exhaustion
+
+A dispatch failure was retried or redispatched according to policy, but all allowed attempts failed.
+
+#### Pool Unavailable
+
+The entire serving pool is unavailable due to health, drain, or policy constraints.
+
+#### Why This Matters
+
+These failure classes let operators distinguish:
+
+- semantic success followed by infrastructure failure
+- isolated endpoint failure versus pool-wide outage
+- transient connect problems versus repeated dispatch instability
+
+### Observability
+
+Load Balancing must expose operationally useful telemetry because its decisions are runtime-sensitive.
+
+#### Core Metrics
+
+- pool-resolution count
+- endpoint-selection count by endpoint and pool
+- dispatch latency
+- retry count
+- redispatch count
+- per-endpoint failure rate
+- pool-unavailable count
+- drain-state traffic volume
+
+#### Recommended Dashboards
+
+Operators should be able to see:
+
+- endpoint health by pool
+- request volume by selected model and backend pool
+- retry and redispatch trends
+- latency and failure distribution by endpoint
+- drained or degraded endpoint behavior during maintenance or incidents
+
+#### Trace Fields
+
+Useful trace or log fields include:
+
+- request ID
+- selected model
+- resolved pool
+- selected endpoint
+- scheduling algorithm
+- retry count
+- redispatch count
+- final dispatch outcome
+
+### Configuration Model
 
 The subsystem should be configured declaratively.
 
-### 19.1 Configuration Domains
+#### Configuration Domains
 
-* model-to-pool mapping
-* endpoint registry
-* health-check policy
-* retry policy
-* redispatch policy
-* scheduling algorithm
-* stickiness policy
-* metrics adapters
+- model-to-pool mapping
+- endpoint registry
+- health-check policy
+- retry policy
+- redispatch policy
+- scheduling algorithm
+- stickiness policy
+- metrics adapters
 
-### 19.2 Example Logical Structure
+#### Example Logical Structure
 
 ```yaml
 load_balancing:
@@ -730,49 +575,27 @@ load_balancing:
           weight: 100
 ```
 
-This is intentionally logical rather than implementation-specific.
+This structure is intentionally logical rather than implementation-specific. The important property is that scheduling and reliability policy remain reviewable and changeable without code edits.
 
----
+### Security and Operational Considerations
 
-## 20. Security and Operational Considerations
-
-Load Balancing is not the primary semantic governance layer, but it still has important security and operational responsibilities.
+Although Load Balancing is not the semantic governance layer, it still has important security and operational responsibilities.
 
 It should support:
 
-* explicit endpoint allowlists
-* protocol and TLS policy per backend
-* controlled external fallback
-* backend isolation by tenant or region where required
-* safe draining for maintenance
-* observability suitable for incident response
+- explicit endpoint allowlists
+- protocol and TLS policy per backend
+- controlled external fallback
+- backend isolation by tenant or region when required
+- safe draining for maintenance
+- telemetry suitable for incident response
 
-This ensures the subsystem remains operationally trustworthy even though its core role is traffic engineering rather than semantic policy.
+These controls make the dispatch layer operationally trustworthy without turning it into a semantic policy engine.
 
----
+## References
 
-## 21. Summary
-
-ASE Load Balancing is the subsystem responsible for **instance-level dispatch after model selection has already been completed**.
-
-It operates as the second decision layer in the ASE gateway and is responsible for:
-
-* resolving the backend pool for the selected model,
-* determining endpoint eligibility,
-* selecting an execution target using professional load-balancing policy,
-* managing health, retries, redispatch, and failover,
-* and exposing operationally meaningful runtime state.
-
-Its design is intentionally grounded in mature load-balancer practice. NGINX’s upstream scheduling methods provide the baseline algorithm vocabulary, HAProxy’s health checks and retry/redispatch model provide the reliability foundation, and backend-native telemetry such as vLLM’s `/metrics` can be incorporated where available to improve runtime-aware scheduling. ([NGINX Docs][1])
-
-Together with `ASE Semantic Routing Design`, this subsystem completes the two-layer ASE LLM gateway architecture:
-
-* **Semantic Routing** decides **what model should run**
-* **Load Balancing** decides **where that model should run**
-
-[1]: https://docs.nginx.com/nginx/admin-guide/load-balancer/http-load-balancer/?utm_source=chatgpt.com "HTTP Load Balancing | NGINX Documentation"
-[2]: https://docs.vllm.ai/en/stable/design/metrics/?utm_source=chatgpt.com "Metrics - vLLM"
-[3]: https://www.haproxy.com/documentation/haproxy-configuration-tutorials/reliability/retries/?utm_source=chatgpt.com "Retries and redispatches | HAProxy config tutorials"
-[4]: https://www.haproxy.com/documentation/haproxy-configuration-manual/latest/?utm_source=chatgpt.com "Configuration Manual"
-[5]: https://docs.nginx.com/nginx-gateway-fabric/reference/api/?utm_source=chatgpt.com "API reference | NGINX Documentation"
-[6]: https://www.haproxy.com/documentation/haproxy-configuration-tutorials/alerts-and-monitoring/statistics/?utm_source=chatgpt.com "Statistics dashboard | HAProxy config tutorials"
+- [R1] `overview.md`, ASE LLM Gateway Architecture Overview
+- [R2] `ASE_Semantic_routing.md`, ASE Semantic Routing Design
+- [R3] NGINX HTTP Load Balancing Documentation, https://docs.nginx.com/nginx/admin-guide/load-balancer/http-load-balancer/
+- [R4] HAProxy Reliability and Health Check Documentation, https://www.haproxy.com/documentation/haproxy-configuration-tutorials/reliability/
+- [R5] vLLM Metrics Documentation, https://docs.vllm.ai/en/stable/design/metrics/

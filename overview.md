@@ -1,510 +1,318 @@
 # ASE LLM Gateway Architecture Overview
 
-## Document Status
+## Introduction
 
-- **Document ID**: ASE-LLM-ARCH-OVERVIEW
-- **Document Type**: Architecture Overview
-- **Intended Audience**: Platform architects, AI infrastructure engineers, gateway engineers, security engineers, operations teams
-- **Scope Level**: High-level system architecture
-- **Related Documents**:
-  - `ASE Semantic Routing Design`
-  - `ASE Load Balancing Design`
+This document defines the top-level architecture of the ASE LLM gateway. Its purpose is to explain how ASE should process LLM requests end to end, what the major control boundaries are, and how the gateway separates model-level decision making from infrastructure-level traffic distribution.
 
----
+The intended audience is platform architects, gateway engineers, AI infrastructure engineers, security engineers, and operations teams that need a common architecture narrative before reading subsystem-level design documents.
 
-## 1. Introduction
+This document is the entry point to a three-document design set:
 
-Enterprise LLM access can no longer be treated as a simple proxying problem. Modern AI applications invoke multiple models with different capability, latency, cost, deployment boundary, and compliance characteristics. As a result, the gateway in front of these models must make two fundamentally different decisions for every request.
+- `overview.md` explains the overall architecture, request path, and responsibility split.
+- `ASE_Semantic_routing.md` specifies how ASE selects the target model.
+- `load_balancer.md` specifies how ASE selects the serving instance for that model.
 
-The first decision is **semantic model selection**: determining which model is most appropriate for the request based on task intent, complexity, context requirements, policy constraints, and user preferences. The second decision is **infrastructure-level dispatch**: determining which backend instance should execute the request once the target model has already been selected.
+## Background
 
-To address this problem, ASE adopts a **two-layer request processing architecture**:
+### Enterprise LLM Gateway Problem
 
-1. **Semantic Routing Layer**  
-   Resolves the target model for the request.
+Enterprise LLM access can no longer be treated as a simple proxying or HTTP forwarding problem. Modern AI applications invoke different models with different capability profiles, cost tiers, latency characteristics, deployment boundaries, and governance constraints. As a result, an LLM gateway must make two different classes of decision for every request:
 
-2. **Load Balancing Layer**  
-   Resolves the serving instance within the selected model pool.
+1. Which model should serve the request.
+2. Which backend instance should execute the selected model.
 
-This document describes the overall architecture of the ASE LLM gateway, the system boundaries, the request lifecycle, and the responsibility split between these two layers. Detailed designs of each layer are intentionally described in separate subsystem documents.
+These two decisions operate on different inputs and optimize for different outcomes. Model selection depends on semantics, policy, and business intent. Instance selection depends on health, load, runtime pressure, locality, and reliability.
 
----
+### Why a Single-Layer Router Is Not Enough
 
-## 2. Purpose and Scope
+A single opaque router that mixes prompt understanding, business policy, endpoint health, retry behavior, and traffic scheduling becomes difficult to explain, operate, and evolve. It combines control-plane reasoning with data-plane scheduling and makes it hard to answer basic production questions such as:
 
-This document provides the **high-level architecture** of the ASE LLM gateway. It focuses on:
+- Was the request sent to the wrong model, or did the right model fail on the wrong server?
+- Is a failure caused by semantic policy, pool availability, or endpoint instability?
+- Can platform teams tune balancing behavior without changing model-selection policy?
 
-- the architectural motivation for the gateway
-- the decomposition of the system into two layers
-- the contract between the two layers
-- the major components in the end-to-end request path
-- the overall processing lifecycle for an LLM request
-- the relationship between this overview document and the subsystem design documents
+ASE therefore needs an architecture that preserves a clean decision boundary between semantic routing and load balancing.
 
-This document does **not** define:
+### Architecture Goals
+
+The overall ASE architecture is designed to satisfy the following goals:
+
+- route each request to a model that is appropriate for task intent, capability need, and policy boundary
+- dispatch traffic only to eligible backend instances that can serve the selected model reliably
+- enforce governance before expensive inference execution
+- maintain operational reliability under overload, partial failure, and recovery
+- keep routing explainable as a sequence of decisions rather than one opaque outcome
+- allow semantic policy and traffic engineering to evolve independently
+
+### Foundational Principles
+
+The design is based on a small set of architectural principles:
+
+- separation of concerns between model selection and instance scheduling
+- a strict layered contract in which Semantic Routing resolves `model` and Load Balancing honors it
+- policy and authorization checks before the request reaches expensive inference backends
+- explicit distinction between semantic failures and infrastructure failures
+- support for internal, external, and hybrid serving topologies without changing the layer model
+
+## Scope
+
+### In Scope
+
+This document covers:
+
+- the high-level ASE system boundary
+- the two-layer architecture used in the request path
+- the contract between Semantic Routing and Load Balancing
+- the major logical components in the gateway
+- the end-to-end request lifecycle
+- the responsibility split between the two layers
+- the top-level failure model
+- deployment and observability expectations
+- the relationship between this overview and the subsystem design documents
+
+### Out of Scope
+
+This document does not define:
 
 - detailed semantic signal extraction logic
-- detailed routing policy rules
+- detailed model-selection policy rules
 - detailed instance scheduling algorithms
-- detailed health-check, retry, or failover parameters
-- detailed request/response API fields
-- detailed configuration schema
+- concrete retry or failover thresholds
+- full request and response API schemas
+- full configuration schemas
+- implementation-specific storage, cache, or controller choices
 
-Those topics belong in the subsystem documents.
+Those topics belong in the subsystem design documents.
 
----
+## Design
 
-## 3. Problem Statement
-
-An enterprise LLM gateway must solve a routing problem that is more complex than traditional HTTP traffic distribution.
-
-In a conventional load balancer, the primary question is: **which backend server should receive the request**. In an LLM system, that is only half of the problem. A production gateway must answer two questions in sequence:
-
-1. **Which model should serve this request?**
-2. **Which serving instance should execute that model request?**
-
-These questions should not be collapsed into a single opaque decision because they operate on different inputs, different constraints, and different optimization objectives.
-
-### 3.1 Why a Single-Layer Router Is Not Enough
-
-A single-layer “smart router” quickly becomes difficult to reason about because it mixes:
-
-- semantic understanding of prompt intent
-- policy and governance enforcement
-- model capability matching
-- cost and quality trade-offs
-- backend availability
-- queue and connection pressure
-- retry and failover behavior
-
-This creates poor separation of concerns. It also makes the system harder to explain, harder to operate, and harder to evolve.
-
-### 3.2 Architectural Requirement
-
-ASE therefore requires an architecture that:
-
-- separates **model selection** from **instance scheduling**
-- preserves a clean control boundary between policy logic and traffic engineering
-- supports heterogeneous model fleets
-- supports heterogeneous serving backends
-- supports enterprise governance and observability
-- remains operationally understandable under failure and scale
-
----
-
-## 4. Design Goals
-
-The ASE LLM gateway is designed to satisfy the following goals.
-
-### 4.1 Correct Model Selection
-
-The system should route each request to a model that is appropriate for the task, capability requirement, policy boundary, and business objective.
-
-### 4.2 Efficient Instance Scheduling
-
-Once a model is selected, the system should forward the request to a backend instance that can serve it with good latency, availability, and operational stability.
-
-### 4.3 Policy and Governance Enforcement
-
-The gateway should provide a control point for enterprise requirements such as authorization, tenant restrictions, compliance boundaries, and safety-related routing controls.
-
-### 4.4 Operational Reliability
-
-The system should remain resilient under backend failures, overload, degraded service, and partial recovery.
-
-### 4.5 Explainability and Debuggability
-
-Routing should be explainable as a sequence of decisions rather than a single opaque outcome.
-
-### 4.6 Extensibility
-
-The architecture should allow the semantic layer and the load-balancing layer to evolve independently.
-
----
-
-## 5. Design Principles
-
-The architecture is based on the following principles.
-
-### 5.1 Separation of Concerns
-
-Semantic routing and load balancing solve different problems and therefore must be implemented as separate layers.
-
-### 5.2 Layered Contract
-
-The output of the Semantic Routing layer is the authoritative model assignment. The Load Balancing layer must honor that assignment and perform scheduling only within the selected model pool.
-
-### 5.3 Policy Before Expensive Execution
-
-Governance, authorization, and semantic eligibility decisions should occur before requests reach costly inference backends.
-
-### 5.4 Infrastructure Scheduling After Semantic Resolution
-
-Backend selection should be based on operational state only after model resolution is complete.
-
-### 5.5 Explicit Failure Semantics
-
-Failure handling should preserve layer boundaries. Semantic failure and infrastructure failure are different failure classes and should be observable as such.
-
-### 5.6 Deployment Flexibility
-
-The gateway should support different deployment modes, including internal model clusters, external APIs, and hybrid serving topologies.
-
----
-
-## 6. System Context
+### System Context
 
 ASE sits between enterprise applications and a heterogeneous LLM serving environment.
 
-At the northbound side, ASE exposes a unified request interface to clients and internal services. At the southbound side, ASE connects to one or more model-serving environments, which may include:
+On the northbound side, ASE exposes a unified request interface to applications and internal services. On the southbound side, ASE may connect to:
 
 - internally hosted inference clusters
-- vendor-hosted external model APIs
+- external provider APIs
 - model-specific serving pools
 - region-specific or compliance-specific deployments
-- mixed-capability fleets with different performance and cost profiles
+- mixed fleets with different cost and latency tiers
 
-ASE therefore functions as both:
+In this architecture, ASE acts as both an enterprise LLM gateway and a policy-aware control point for request steering.
 
-- an **enterprise LLM gateway**
-- a **control point for policy-aware request steering**
+### Two-Layer Architecture
 
----
+ASE processes each request through two logical decision layers.
 
-## 7. Two-Layer Architecture
+#### Semantic Routing
 
-### 7.1 Layer 1: Semantic Routing
+Semantic Routing decides which model should serve the request. It evaluates request meaning, capability requirements, governance constraints, tenant policy, and business objectives. Its output is an authoritative `model` assignment plus optional routing metadata that explains or constrains downstream behavior.
 
-The Semantic Routing layer determines **which model should serve the request**.
+#### Request Enrichment Boundary
 
-This layer is responsible for:
+The boundary between the two layers is explicit. After Semantic Routing finishes, the request is enriched with the selected `model` value and any routing annotations needed downstream. That enriched request becomes the input contract for Load Balancing.
+
+#### Load Balancing
+
+Load Balancing decides which backend instance should execute the already selected model request. It resolves the backend pool for the chosen model, filters ineligible or unhealthy endpoints, applies scheduling policy, and dispatches traffic to a concrete target.
+
+#### Core Contract
+
+The central architectural rule of ASE is:
+
+> Semantic Routing resolves the target model. Load Balancing resolves the serving instance within that model's backend pool.
+
+This rule keeps semantic policy and infrastructure scheduling separate, testable, and operationally understandable.
+
+### High-Level Component Model
+
+The ASE LLM gateway can be described through the following logical components.
+
+#### Northbound Interface
+
+The northbound interface receives client requests, performs gateway-level authentication and request admission, and normalizes inbound traffic into the internal request pipeline.
+
+#### Semantic Routing Subsystem
+
+This subsystem interprets request content and control metadata, extracts routing signals, filters ineligible models, selects the best eligible model, and emits routing rationale.
+
+#### Request Enrichment Boundary
+
+This boundary materializes the semantic decision into a stable request contract, typically through `model=<resolved-model>` plus optional route metadata such as policy tags, route reason, or debug fields.
+
+#### Load Balancing Subsystem
+
+This subsystem maps the resolved model to a backend pool, evaluates endpoint eligibility, selects a target instance, applies retry and redispatch policy, and forwards the request.
+
+#### Backend Registry and Health State
+
+ASE requires a backend inventory and runtime health model so that Load Balancing can reason about endpoint identity, model support, locality, weights, drain state, and service health.
+
+#### Southbound Model Endpoints
+
+Southbound targets may be internal inference servers, provider-hosted APIs, or hybrid targets. The architecture treats them as execution backends after semantic resolution, even when their operational characteristics differ.
+
+#### Observability and Control Functions
+
+ASE must emit enough telemetry to reconstruct the request path as:
+
+`request received -> model selected -> pool resolved -> instance selected -> response or failure`
+
+This is necessary for debugging routing behavior and for separating semantic errors from infrastructure failures during operations.
+
+### End-to-End Request Lifecycle
+
+An end-to-end request should follow the lifecycle below.
+
+#### Step 1: Request Ingress
+
+ASE receives a client request through the unified gateway interface.
+
+#### Step 2: Request Normalization
+
+Gateway-level request parsing and normalization prepare the request for semantic evaluation.
+
+#### Step 3: Semantic Evaluation
+
+Semantic Routing extracts routing-relevant signals such as task type, complexity, policy tags, user hints, and context requirements.
+
+#### Step 4: Model Resolution
+
+Semantic Routing filters candidate models and selects the final target model. The request is enriched with `model=<resolved-model>`.
+
+#### Step 5: Pool Resolution
+
+Load Balancing resolves the backend pool associated with the selected model.
+
+#### Step 6: Endpoint Filtering
+
+Load Balancing removes endpoints that are unhealthy, drained, policy-ineligible, or otherwise unavailable.
+
+#### Step 7: Instance Scheduling
+
+Load Balancing selects the best execution target according to the configured scheduling policy and current runtime state.
+
+#### Step 8: Request Dispatch
+
+ASE forwards the request to the chosen backend target and applies bounded retry or redispatch policy if dispatch-time failures occur.
+
+#### Step 9: Response Handling
+
+ASE returns the backend response to the caller and classifies any failures according to whether they originated in semantic decision making or infrastructure execution.
+
+#### Step 10: Observability Update
+
+ASE emits the metrics, logs, traces, and decision metadata needed to debug the request later.
+
+### Responsibility Split
+
+The two layers must preserve a strict ownership boundary.
+
+#### Semantic Routing Owns
 
 - request understanding
 - routing signal extraction
 - model eligibility filtering
-- policy-aware model decision
-- request enrichment with the selected `model`
+- policy-aware model selection
+- request enrichment with the resolved `model`
+- decision rationale and semantic trace data
 
-This layer is **model-centric**. It is not responsible for choosing a machine.
-
-### 7.2 Layer 2: Load Balancing
-
-The Load Balancing layer determines **which backend instance should execute the already-selected model request**.
-
-This layer is responsible for:
+#### Load Balancing Owns
 
 - model-pool resolution
-- endpoint eligibility evaluation
-- health-aware instance scheduling
-- retry and failover control
-- upstream traffic distribution
-
-This layer is **instance-centric**. It is not responsible for reinterpreting prompt semantics.
-
-### 7.3 Core Architectural Rule
-
-The two layers are connected by a strict interface:
-
-> The Semantic Routing layer resolves the target model.  
-> The Load Balancing layer resolves the serving instance within that model’s backend pool.
-
-This rule is the central architectural contract of the ASE LLM gateway.
-
----
-
-## 8. High-Level Component Model
-
-The ASE LLM gateway can be described as the following set of logical components:
-
-### 8.1 Northbound Interface
-
-Receives requests from clients and internal applications.
-
-Responsibilities include:
-
-- request ingress
-- protocol adaptation
-- authentication and identity propagation
-- request normalization
-- tracing context initialization
-
-### 8.2 Semantic Routing Subsystem
-
-Determines the target model for the request.
-
-Responsibilities include:
-
-- semantic signal extraction
-- policy evaluation
-- model selection
-- routing metadata generation
-- optional governance plugins
-
-### 8.3 Request Enrichment Boundary
-
-Defines the output contract from Semantic Routing to Load Balancing.
-
-Typical data passed forward may include:
-
-- resolved `model`
-- session identifier
-- tenant identifier
-- request priority
-- routing reason code
-- policy tags
-
-### 8.4 Load Balancing Subsystem
-
-Schedules the request onto an eligible backend instance.
-
-Responsibilities include:
-
-- model-pool lookup
-- endpoint state tracking
-- instance selection
-- retry/failover handling
-- upstream dispatch
-
-### 8.5 Backend Registry and Health State
-
-Maintains dynamic knowledge of available serving endpoints and their operational state.
-
-Responsibilities include:
-
 - endpoint discovery
-- pool membership
-- health status
-- drain status
-- scheduling eligibility
+- health-aware candidate filtering
+- instance scheduling
+- retry, redispatch, and dispatch-time failover
+- runtime traffic distribution telemetry
 
-### 8.6 Southbound Model Endpoints
+#### Semantic Routing Does Not Own
 
-The actual execution targets that serve requests.
+- per-endpoint health checks
+- queue-aware instance scheduling
+- connection retry mechanics
+- pool-level failover sequencing
 
-These may be:
+#### Load Balancing Does Not Own
 
-- internal model-serving instances
-- vendor APIs
-- regional deployments
-- dedicated tenant pools
-- compliance-scoped model clusters
+- prompt interpretation
+- semantic task classification
+- model-family selection under normal operation
+- business-policy reasoning that belongs in Layer 1
 
-### 8.7 Observability and Control Functions
+### Failure Model
 
-Provide operational visibility and control over the system.
+ASE should classify failures according to the layer that owns the failed decision.
 
-Responsibilities include:
+#### Semantic Failure
 
-- request tracing
-- metrics emission
-- routing audit logs
-- error classification
-- control-plane policy distribution
+Semantic failure occurs when ASE cannot normalize the request, cannot find an eligible model, or denies the request based on policy or governance rules. These are pre-dispatch failures.
 
----
+#### Infrastructure Failure
 
-## 9. End-to-End Request Lifecycle
+Infrastructure failure occurs after a model has already been selected but no backend endpoint can serve the request successfully. Examples include pool exhaustion, endpoint unavailability, dispatch failure, or retry exhaustion.
 
-A typical request lifecycle in ASE is described below.
+#### Why the Distinction Matters
 
-### Step 1: Request Ingress
+Separating these failure classes improves:
 
-A client sends a request to ASE, typically with a logical model target such as `model=auto` or another abstract routing form.
+- debugging, because operators know whether the issue was model choice or backend execution
+- user messaging, because rejection and temporary unavailability can be reported differently
+- policy evolution, because semantic policy can change independently from dispatch policy
+- operational tuning, because SREs can optimize backend behavior without changing model-selection logic
 
-### Step 2: Request Normalization
+### Deployment View
 
-ASE normalizes the incoming request into an internal representation suitable for gateway processing.
+The two-layer architecture is deployment-agnostic and supports multiple deployment modes.
 
-### Step 3: Semantic Evaluation
+#### Centralized Gateway, Distributed Model Pools
 
-The Semantic Routing layer inspects the request and evaluates routing signals, policy constraints, and model eligibility.
+A single logical ASE gateway fronts multiple model pools hosted in one or more backend clusters.
 
-### Step 4: Model Resolution
+#### Hybrid Internal and External Serving
 
-The Semantic Routing layer selects the target model and attaches it to the request.
+ASE routes some requests to internal inference infrastructure and others to external provider APIs while keeping the same semantic-to-balancing handoff.
 
-At this point, semantic model selection is complete.
+#### Compliance-Aware Segmentation
 
-### Step 5: Pool Resolution
+Specific requests can be constrained to approved regions, providers, or data-handling boundaries without changing the overall layer model.
 
-The Load Balancing layer resolves the backend pool corresponding to the selected model.
+#### Tiered Serving
 
-### Step 6: Endpoint Filtering
+Different model pools may represent different service tiers such as low-cost, high-throughput, premium-quality, or private-serving deployments.
 
-The Load Balancing layer removes endpoints that are unavailable, draining, or otherwise ineligible.
+### Observability Model
 
-### Step 7: Instance Scheduling
+Observability is a first-class design requirement because routing behavior must be explainable. At the overview level, ASE should expose enough telemetry to answer:
 
-The Load Balancing layer selects a serving instance using the configured balancing strategy.
+- what request arrived
+- which model was selected
+- which pool was resolved
+- which instance was chosen
+- whether retries or redispatch happened
+- whether the request succeeded, was denied semantically, or failed infrastructurally
 
-### Step 8: Request Dispatch
-
-ASE forwards the request to the selected backend instance.
-
-### Step 9: Response Handling
-
-The backend response is returned through ASE to the client, with optional tracing, audit tagging, and metrics recording.
-
-### Step 10: Observability Update
-
-Routing decisions, instance selection outcomes, latency, and failure results are recorded for operations and debugging.
-
----
-
-## 10. Layer Boundary and Responsibility Split
-
-A professional architecture requires that each layer own a distinct class of decisions.
-
-### 10.1 Semantic Routing Owns
-
-- semantic understanding of the request
-- task and capability matching
-- policy-aware model selection
-- model eligibility filtering
-- routing rationale
-- request enrichment with `model`
-
-### 10.2 Load Balancing Owns
-
-- endpoint pool resolution
-- health-aware scheduling
-- per-instance traffic distribution
-- retry behavior
-- failover behavior
-- drain and recovery behavior
-
-### 10.3 Semantic Routing Does Not Own
-
-- connection-level balancing
-- backend liveness monitoring
-- retry loops
-- per-instance scheduling
-
-### 10.4 Load Balancing Does Not Own
-
-- prompt semantic interpretation
-- task classification
-- model capability analysis
-- policy-driven model reassignment under normal operation
-
-This explicit split prevents design drift and keeps the gateway understandable.
-
----
-
-## 11. Failure Model
-
-The two-layer design also improves failure handling by separating failure classes.
-
-### 11.1 Semantic Failure
-
-Semantic failure occurs when ASE cannot resolve a valid target model because of:
-
-- invalid request shape
-- missing required capabilities
-- policy violation
-- denied route override
-- no model satisfies hard constraints
-
-This is a **Layer 1 failure**.
-
-### 11.2 Infrastructure Failure
-
-Infrastructure failure occurs when a valid model has been selected, but no eligible serving instance is available because of:
-
-- all endpoints down
-- all endpoints draining
-- connection failures
-- upstream overload
-- retry exhaustion
-
-This is a **Layer 2 failure**.
-
-### 11.3 Why This Matters
-
-By separating these failure classes, ASE can expose clearer operational states and error reporting:
-
-- “no eligible model”
-- “model selected but no healthy backend”
-- “request failed after dispatch”
-
-This is more useful than a generic “routing failed” outcome.
-
----
-
-## 12. Deployment View
-
-The architecture is intentionally deployment-agnostic at the overview level. ASE may be deployed in several ways.
-
-### 12.1 Centralized Gateway, Distributed Model Pools
-
-A single logical ASE gateway fronts multiple model pools located in one or more backend clusters.
-
-### 12.2 Hybrid Internal and External Serving
-
-ASE routes some requests to internal inference clusters and others to external provider APIs.
-
-### 12.3 Compliance-Aware Segmentation
-
-ASE restricts certain requests to approved deployment zones while allowing other requests to route more broadly.
-
-### 12.4 Tiered Serving Architecture
-
-Different model pools may correspond to different service tiers, such as low-cost, high-throughput, or premium-quality serving.
-
-The high-level two-layer design remains the same across all deployment modes.
-
----
-
-## 13. Observability Model
-
-Observability is a first-class concern in ASE because routing decisions must be explainable and operations must be able to distinguish semantic issues from infrastructure issues.
-
-At the overview level, ASE should support observability for:
+Core observability signals should therefore include:
 
 - request ingress volume
-- model selection outcomes
-- pool resolution outcomes
-- instance selection outcomes
+- model-selection distribution
+- pool-resolution outcomes
+- endpoint-selection outcomes
 - dispatch latency
+- retry and failover counts
+- semantic rejection and policy-denial counts
 - backend failure classes
-- retry/failover events
-- semantic rejection or policy denial events
 
-A key design objective is that operators can reconstruct the request path as:
+### Relationship to Subsystem Documents
 
-**request received -> model selected -> pool resolved -> instance selected -> response or failure**
+This overview intentionally stops at the system boundary and layer contract. Detailed behavior is delegated to the subsystem documents:
 
----
+- `ASE_Semantic_routing.md` defines the request-level model-selection architecture.
+- `load_balancer.md` defines the instance-level dispatch and reliability architecture.
 
-## 14. Relationship to Subsystem Documents
+The overview should remain stable even if either subsystem evolves internally.
 
-This overview document is the top-level document in a three-document design series.
+## References
 
-### 14.1 Architecture Overview
-
-Describes the overall ASE LLM gateway architecture, system boundary, request lifecycle, and the responsibility split between Semantic Routing and Load Balancing.
-
-### 14.2 Semantic Routing Design
-
-Describes how ASE extracts routing signals, applies semantic and policy decisions, resolves candidate models, and produces the authoritative `model` assignment.
-
-### 14.3 Load Balancing Design
-
-Describes how ASE maps the selected model to a backend pool and schedules requests across serving instances using professional load-balancing and reliability mechanisms.
-
-This document intentionally avoids deep subsystem detail so that each subsystem design can evolve independently without destabilizing the top-level architecture.
-
----
-
-## 15. Summary
-
-ASE should be designed as a **two-layer enterprise LLM gateway**.
-
-The first layer, **Semantic Routing**, determines the correct model for a request based on semantic, policy, and business context. The second layer, **Load Balancing**, determines the correct backend instance within the selected model pool based on operational state and service reliability considerations.
-
-This separation is the key architectural principle of the system. It creates a clean contract between semantic decision-making and infrastructure scheduling, improves explainability, supports extensibility, and makes the gateway suitable for production-grade enterprise LLM deployments.
-
-The remainder of the design series builds on this overview:
-
-- `ASE Semantic Routing Design` specifies how model selection is performed.
-- `ASE Load Balancing Design` specifies how instance selection and traffic reliability are performed.
+- [R1] `ASE_Semantic_routing.md`, ASE Semantic Routing Design
+- [R2] `load_balancer.md`, ASE Load Balancing Design
