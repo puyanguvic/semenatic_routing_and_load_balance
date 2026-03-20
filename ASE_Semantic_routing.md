@@ -222,6 +222,20 @@ The signal set naturally falls into five groups.
 
 The subsystem should compute only the signals needed for the current decision path. Cheap signals should remain cheap, and expensive signals should be invoked only when they materially affect the outcome.
 
+### Reasoning Budget and Cost Model
+
+Reasoning budget is a routing concern because reasoning-oriented models may consume substantially more tokens, wall-clock time, and infrastructure resources than lightweight models.
+
+The subsystem should therefore estimate, when useful:
+
+- input-token volume
+- requested or inferred output length
+- expected reasoning depth
+- likely tool-use or structured-output overhead
+- caller latency preference and cost preference
+
+These signals exist to improve optimization, not to bypass hard constraints. More compute is not automatically better. A simple fact lookup should not be sent to a heavyweight reasoning model by default, but a later turn in the same session may still require escalation if the request becomes materially more complex.
+
 ### Decision Framework
 
 The routing decision should be understood as a staged reduction process, not a monolithic score.
@@ -260,6 +274,22 @@ The subsystem should therefore preserve the previous model when doing so remains
 
 Useful session metadata includes the previous model, the last escalation reason, continuity preference, and any conversation classification history that materially affects routing.
 
+### Request-Level Routing Semantics
+
+ASE should route at request granularity, not by pinning an entire session to a single model decision.
+
+Session context exists to improve continuity, not to suppress re-evaluation. Each inbound request must still pass through capability checks, policy checks, and optimization. This prevents an early low-cost routing decision from locking later high-complexity turns to an underpowered model, and it prevents an early high-cost decision from forcing later trivial turns to remain expensive without justification.
+
+The expected behavior is:
+
+- each request is independently evaluated against current capability and policy constraints
+- previous-model continuity is treated as an optimization preference, not a hard binding
+- escalation is allowed when later turns exceed the capability, context, or quality envelope of the current model
+- downgrade is conservative and requires explicit policy support
+- a caller-supplied override applies to the current request unless a separate session-pinning feature is explicitly defined and authorized
+
+If semantic cache or response reuse is employed, cache lookup must remain subordinate to governance and capability validation. A cache hit must not become an implicit bypass around policy or model-eligibility checks.
+
 ### Output Contract
 
 The output of Semantic Routing is the formal handoff artifact to downstream Load Balancing and to operators who need to understand what decision was made.
@@ -294,6 +324,50 @@ An illustrative output shape is shown below.
   ]
 }
 ```
+
+### Northbound API and Routing Extensions
+
+ASE should remain broadly compatible with OpenAI-style request shapes while exposing a narrow set of routing-aware controls.
+
+The following caller-visible controls are recommended.
+
+| Field | Purpose | Constraint |
+| --- | --- | --- |
+| `model=auto` | request semantic model selection | default path for routed traffic |
+| `model=<explicit-model>` | request a specific model directly | still subject to policy and capability validation |
+| `routing_hint` | provide a coarse semantic hint such as `code`, `reasoning`, or `extract` | advisory only; must not bypass policy |
+| `route_override` | request a specific route or model alias | restricted to authorized callers; must not bypass hard constraints |
+| `preference` | express latency, cost, or quality bias | optimization input only |
+| `input_tokens_estimate` | provide a caller-side prompt-size estimate | advisory signal that may improve token-aware routing |
+| `session_id` | preserve multi-turn continuity context | optional unless continuity policy requires it |
+| `debug` or `explain` | request routing diagnostics | restricted and redacted for trusted callers only |
+
+The precedence order should be explicit. Hard capability and policy constraints are evaluated first. Authorized explicit model requests or route overrides are evaluated next. Session continuity and optimization preferences are applied only after the request is proven eligible.
+
+An illustrative northbound request shape is shown below.
+
+```json
+{
+  "model": "auto",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Write a C epoll example"
+    }
+  ],
+  "routing_hint": "code",
+  "preference": {
+    "cost": "low",
+    "latency": "medium",
+    "quality": "high"
+  },
+  "input_tokens_estimate": 120,
+  "session_id": "conv-123",
+  "debug": true
+}
+```
+
+When debug mode is authorized, ASE may return controlled routing detail such as the chosen model, high-level reason codes, and a trace identifier. It must not expose raw internal policy rules or sensitive model metadata to unauthorized callers.
 
 ### Explainability and Audit Requirements
 
@@ -355,6 +429,7 @@ The configuration surface should at least cover:
 - signal extractor bindings
 - policy rules
 - optimization objectives
+- northbound routing extension policy
 - session continuity policy
 - plugin-chain bindings
 - debug verbosity and trace controls

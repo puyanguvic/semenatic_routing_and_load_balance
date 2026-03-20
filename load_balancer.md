@@ -256,6 +256,20 @@ Load Balancing should support a family of scheduling strategies rather than a si
 
 The initial ASE deployment can start with simpler strategies such as weighted round robin or least in-flight and evolve toward richer metrics-aware approaches without changing the subsystem boundary.
 
+### Advanced Scheduling Strategies
+
+In addition to baseline strategies, ASE should treat several LLM-specific scheduling patterns as first-class policies rather than ad hoc implementation details.
+
+| Strategy | Required Signals | Best Fit | Primary Caveat |
+| --- | --- | --- | --- |
+| Consistent Hashing / Stable Affinity | session ID, conversation ID, or request-class hash | preserve KV-cache or prefix-cache locality across related requests | locality must be breakable when the preferred endpoint is unhealthy or overloaded |
+| Power of Two Choices | lightweight load signal such as in-flight requests or queue depth | better short-term balance than random selection at low overhead | still depends on reasonably fresh load state |
+| Least Queue / Queue-Aware | queue depth, waiting requests, or admission backlog | prefill-heavy or bursty clusters where waiting time dominates | poor queue telemetry leads to poor choices |
+| Token-Aware Scheduling | prompt-token estimate, `max_tokens`, token throughput | highly variable request sizes where raw request count is misleading | estimates are approximate and should not be treated as exact cost |
+| Cache-Aware / Prefix-Aware Routing | prefix hash, cache-hit probability, or session locality hint | repeated system prompts, agent workloads, or templated RAG requests | can reduce fairness if locality is over-weighted |
+
+These strategies are composable. For example, ASE may use Power of Two Choices to reduce candidate-selection overhead, then break ties using least in-flight load or cache-locality preference.
+
 ### Health Model
 
 Endpoint health must be modeled explicitly. Dispatch quality depends on being able to distinguish endpoints that are healthy, degraded, unavailable, or draining for administrative reasons.
@@ -271,6 +285,8 @@ Health state should be informed by both active and passive signals. Active check
 
 Recovery must also be policy-controlled. An endpoint that has just recovered should not necessarily receive full traffic immediately. Gradual re-entry or controlled reinstatement is preferable when recent instability suggests recovery may be incomplete.
 
+Circuit-breaking state may be layered on top of endpoint health. An `open` circuit suppresses traffic to a recently failing endpoint, while a `half_open` circuit permits controlled probes before the endpoint is returned to normal service. Circuit state is an operational safety mechanism and should remain visible in dispatch telemetry.
+
 ### Reliability Model
 
 Reliability behavior is part of the subsystem design, not an implementation afterthought.
@@ -278,6 +294,8 @@ Reliability behavior is part of the subsystem design, not an implementation afte
 Retries should be finite and policy-controlled. Redispatch should occur only when the failure mode and request semantics make it safe to do so. Failover should remain bounded and observable rather than open-ended.
 
 Safe retry scenarios usually involve failures before execution begins, such as connection failure, TLS establishment failure, or immediate admission rejection. Unsafe retry scenarios usually involve the possibility that execution already began, such as partial streamed responses, ambiguous upstream timeouts, or tool side effects.
+
+For streaming responses, redispatch is usually unsafe once bytes or tokens have already been relayed to the caller. Unless the upstream protocol provides explicit resumable semantics, ASE should treat post-stream-start failures as terminal execution failures rather than silently replaying them on another backend.
 
 If retry and redispatch are exhausted, the subsystem must emit a clear infrastructure failure rather than silently collapsing the error into a semantic-routing problem.
 
@@ -305,6 +323,42 @@ Generic metrics that should work across backend types include:
 When available, richer backend-native telemetry may also be incorporated, such as queue depth, token throughput, GPU utilization, KV cache usage, and prefix-cache hit potential. vLLM-style metrics endpoints are particularly useful in this category. See [R5].
 
 The architectural principle is portability: ASE should benefit from rich metrics without depending on a single serving stack in order to function correctly.
+
+### Canonical Runtime Metrics Vocabulary
+
+ASE should normalize backend-native telemetry into a small canonical vocabulary before the scheduler consumes it. Scheduling policy should target logical metrics rather than vendor-specific metric names.
+
+| Canonical Metric | Meaning | Example Backend-Native Signal | Primary Use |
+| --- | --- | --- | --- |
+| `requests_running` | active requests currently executing on an endpoint | `vllm:num_requests_running` | least in-flight and overload detection |
+| `requests_waiting` | requests queued or waiting for admission | `vllm:num_requests_waiting` | least-queue and queue-aware scheduling |
+| `requests_swapped` | requests displaced due to memory pressure | `vllm:num_requests_swapped` | detect degraded service and memory stress |
+| `ttft_seconds` | time to first token | `vllm:time_to_first_token_seconds` | user-visible latency and endpoint scoring |
+| `tpot_seconds` | average time per output token | `vllm:time_per_output_token_seconds` | decode-speed scoring for streaming workloads |
+| `e2e_latency_seconds` | end-to-end request latency | `vllm:e2e_request_latency_seconds` | overall service quality and regression detection |
+| `prompt_tokens_total` | prompt token throughput counter | `vllm:prompt_tokens_total` | throughput and token-aware cost estimation |
+| `generation_tokens_total` | generation token throughput counter | `vllm:generation_tokens_total` | decode throughput and capacity planning |
+| `gpu_kv_cache_usage_ratio` | GPU-side KV-cache pressure | `vllm:gpu_cache_usage_perc` | cache-aware scoring and overload protection |
+| `cpu_kv_cache_usage_ratio` | CPU-side KV-cache pressure | `vllm:cpu_cache_usage_perc` | swapped-state diagnosis and pressure scoring |
+| `prefix_cache_hit_rate` | reuse potential for repeated prompts | `vllm:prefix_cache_hit_rate` | cache-aware or prefix-aware routing |
+| `gpu_utilization_ratio` | approximate accelerator saturation | backend-specific GPU metric | capacity and hotspot detection |
+
+Not every backend will expose every metric. The normalization layer should preserve missing values explicitly so that schedulers can degrade gracefully rather than pretending absent telemetry is a healthy zero.
+
+### Backend Compatibility and Degradation Model
+
+Not all inference backends expose the same operational surface. Some provide rich `/metrics` and `/health` endpoints, while others provide only coarse availability signals or no scheduler-friendly telemetry at all.
+
+ASE should therefore classify backend integrations by capability level.
+
+| Capability Level | Typical Signals Available | Scheduling Modes That Fit |
+| --- | --- | --- |
+| Level 0: minimal | passive failure observation, connect success, HTTP status | weighted round robin, priority failover |
+| Level 1: basic | active health, request latency, in-flight count | least in-flight, Power of Two Choices |
+| Level 2: queue-aware | waiting queue, token throughput, admission signals | least queue, token-aware scheduling |
+| Level 3: cache and accelerator aware | KV-cache usage, prefix-cache hit rate, GPU utilization | cache-aware, prefix-aware, richer metrics-aware scheduling |
+
+This compatibility model is operationally important. A backend that lacks `/metrics` should not be excluded from ASE, but it should be scheduled using simpler and more conservative policies. Likewise, if `/health` is missing, ASE should fall back to passive health signals or synthetic probes rather than assuming full observability.
 
 ### Failure Semantics
 
@@ -350,6 +404,7 @@ The configuration surface should at least cover:
 - retry policy
 - redispatch policy
 - scheduling algorithm selection
+- scheduler fallback policy by backend capability tier
 - stickiness or affinity policy
 - metrics-adapter bindings
 
@@ -368,6 +423,7 @@ load_balancing:
   pools:
     - model: code-large
       algorithm: least_inflight
+      metrics_capability: level_2
       endpoints:
         - id: code-large-a
           address: 10.0.0.11:8000
@@ -377,6 +433,7 @@ load_balancing:
           weight: 100
     - model: general-small
       algorithm: weighted_round_robin
+      metrics_capability: level_0
       endpoints:
         - id: general-small-a
           address: 10.0.1.11:8000

@@ -279,6 +279,33 @@ In a centralized-gateway deployment, one logical ASE gateway fronts multiple bac
 
 This is an important property of the design. Deployment topology may change over time, but the architectural contract should not.
 
+### Deployment Profiles
+
+The architecture should remain stable across several concrete deployment profiles.
+
+| Profile | Typical Environment | Architectural Implication |
+| --- | --- | --- |
+| Centralized gateway | one ASE control point in front of multiple model pools | simplest place to enforce a single semantic-policy layer and a single dispatch layer |
+| Single-node or appliance deployment | one host or chassis with multiple GPUs and local model processes | the two layers may be implemented in one runtime, but the model-selection and endpoint-selection decisions should still remain separate |
+| Distributed cluster | multiple serving nodes across zones or racks | Load Balancing requires stronger health, locality, and redispatch policy, but the semantic handoff contract remains unchanged |
+| Kubernetes-native deployment | gateway pods in front of service meshes, autoscaling pools, or inference CRDs | control-plane integration may change, but Semantic Routing still resolves the model before any pod- or service-level dispatch |
+| Hybrid internal and external deployment | some traffic served by internal clusters and some by vendor APIs | Semantic Routing may enforce provider or privacy boundaries while Load Balancing chooses among the execution domains that remain |
+
+These profiles differ operationally, but they should not require ASE to collapse semantic policy into runtime scheduling.
+
+### Serving Compatibility Model
+
+ASE is not itself a serving engine. It should front heterogeneous serving stacks while keeping a stable northbound API and a stable contract between Semantic Routing and Load Balancing.
+
+| Backend Class | Typical Strength | Dispatch Implication |
+| --- | --- | --- |
+| self-hosted inference stack with rich metrics | detailed queue, token, and cache telemetry | enables least-queue, token-aware, and cache-aware scheduling |
+| self-hosted stack optimized for multi-turn locality | strong prefix reuse or warm-state preservation | affinity and consistent-placement policy become more valuable |
+| enterprise serving platform behind service abstractions | stronger operational controls, more indirection | dispatch may rely more on pool-level policy and less on per-engine internals |
+| external provider API | limited runtime visibility and provider-owned scheduling | ASE should favor policy enforcement, weighted failover, and conservative retry behavior |
+
+The compatibility model matters because backend differences should change scheduler sophistication, not the architectural boundary. ASE should degrade from rich metrics-aware scheduling to simpler failover-oriented dispatch without rewriting the semantic decision model.
+
 ### Observability Model
 
 The overview-level observability requirement is straightforward: operators must be able to reconstruct how a request moved through the gateway and where it failed if it failed.
