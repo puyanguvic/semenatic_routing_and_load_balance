@@ -124,6 +124,53 @@ The central architectural rule of ASE is:
 
 This rule keeps semantic policy and infrastructure scheduling separate, testable, and operationally understandable.
 
+### System Design Diagram
+
+The diagram below shows the overall ASE architecture and the contract between the two decision layers.
+
+```mermaid
+flowchart LR
+    Client[Client Applications]
+
+    subgraph ASE[ASE LLM Gateway]
+        Ingress[Northbound Interface]
+
+        subgraph SR[Layer 1: Semantic Routing]
+            Normalize[Request Normalization]
+            Route[Semantic Evaluation and Model Selection]
+        end
+
+        Boundary[Request Enrichment<br/>model + route metadata]
+
+        subgraph LB[Layer 2: Load Balancing]
+            Pool[Pool Resolution]
+            Select[Endpoint Eligibility and Scheduling]
+            Dispatch[Dispatch, Retry, and Failover]
+        end
+
+        Obs[Observability and Control]
+        Health[Backend Registry and Health State]
+    end
+
+    subgraph Backends[Serving Environment]
+        Internal[Internal Model Pools]
+        External[External Provider APIs]
+        Regional[Regional and Compliance Pools]
+    end
+
+    Client --> Ingress --> Normalize --> Route --> Boundary --> Pool --> Select --> Dispatch
+    Health --> Pool
+    Health --> Select
+    Dispatch --> Internal
+    Dispatch --> External
+    Dispatch --> Regional
+
+    Ingress -. telemetry .-> Obs
+    Route -. routing trace .-> Obs
+    Select -. scheduling trace .-> Obs
+    Dispatch -. dispatch metrics .-> Obs
+```
+
 ### High-Level Component Model
 
 The ASE LLM gateway can be described through the following logical components.

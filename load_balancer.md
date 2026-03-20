@@ -104,6 +104,51 @@ Its contract is:
 
 Load Balancing may choose the serving instance, but it may not change the semantic model assignment under normal operation.
 
+### System Design Diagram
+
+The diagram below shows the detailed internal flow of the Load Balancing subsystem after a model has already been selected.
+
+```mermaid
+flowchart LR
+    Request[Enriched Request<br/>model + route metadata]
+
+    subgraph Runtime[Runtime State and Configuration]
+        Registry[Endpoint Registry]
+        Health[Health Manager]
+        Metrics[Metrics Adapter]
+        Policy[Reliability and Affinity Policy]
+    end
+
+    subgraph LB[Load Balancing Subsystem]
+        Pool[Pool Resolver]
+        Candidates[Candidate Set Builder]
+        Filter[Eligibility and Health Filter]
+        Scheduler[Scheduler]
+        Dispatch[Reliability Controller<br/>dispatch, retry, redispatch]
+        Backend[Chosen Backend Endpoint]
+        Failure[Infrastructure Failure<br/>no eligible endpoint or retry exhausted]
+    end
+
+    Obs[Observability]
+
+    Request --> Pool --> Candidates --> Filter --> Scheduler --> Dispatch --> Backend
+    Registry --> Pool
+    Registry --> Candidates
+    Health --> Filter
+    Metrics --> Scheduler
+    Policy --> Scheduler
+    Policy --> Dispatch
+
+    Filter -->|no eligible endpoint| Failure
+    Dispatch -->|retry exhausted| Failure
+
+    Backend -. outcome .-> Health
+    Backend -. runtime metrics .-> Metrics
+    Scheduler -. scheduling trace .-> Obs
+    Dispatch -. dispatch metrics .-> Obs
+    Failure -. failure events .-> Obs
+```
+
 ### Internal Architecture
 
 The subsystem is composed of six logical components.

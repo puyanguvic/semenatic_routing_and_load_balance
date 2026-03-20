@@ -103,6 +103,60 @@ Its contract is strict:
 
 Semantic Routing may choose the model, but it may not choose the serving instance. That ownership boundary is fundamental to the overall ASE architecture.
 
+### System Design Diagram
+
+The diagram below shows the detailed internal flow of the Semantic Routing subsystem.
+
+```mermaid
+flowchart LR
+    subgraph Inputs[Routing Inputs]
+        Content[Request Content]
+        Control[Control Metadata]
+        Identity[Identity and Governance Context]
+        Session[Session Context]
+    end
+
+    subgraph Knowledge[Routing Knowledge]
+        Registry[Candidate Model Registry]
+        Policies[Policy and Governance Rules]
+        Objectives[Optimization Objectives]
+    end
+
+    subgraph Router[Semantic Routing Subsystem]
+        Normalize[Request Normalizer]
+        Signals[Signal Extraction Engine]
+        Filter[Eligibility and Constraint Filter]
+        Decide[Decision Engine]
+        Plugins[Policy Plugin Chain]
+        Output[Enriched Request<br/>model + route metadata]
+        Reject[Semantic Failure<br/>no eligible model or policy denial]
+    end
+
+    subgraph Explain[Explainability and Audit]
+        Trace[Routing Trace, Reason Codes, Audit Log]
+    end
+
+    Content --> Normalize
+    Control --> Normalize
+    Identity --> Normalize
+    Session --> Normalize
+
+    Normalize --> Signals --> Filter --> Decide --> Plugins --> Output
+    Registry --> Filter
+    Policies --> Filter
+    Policies --> Decide
+    Objectives --> Decide
+
+    Filter -->|no eligible model| Reject
+    Decide -->|policy denial| Reject
+
+    Normalize -. trace .-> Trace
+    Signals -. trace .-> Trace
+    Filter -. trace .-> Trace
+    Decide -. trace .-> Trace
+    Plugins -. trace .-> Trace
+```
+
 ### Internal Architecture
 
 The subsystem is composed of five logical components.
