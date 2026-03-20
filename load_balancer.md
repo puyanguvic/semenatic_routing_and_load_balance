@@ -2,80 +2,67 @@
 
 ## Introduction
 
-This document defines the design of the Load Balancing subsystem in the ASE LLM gateway. Load Balancing is the second decision layer in the request path and is responsible for choosing which backend instance should execute a request whose target model has already been resolved.
+This document defines the design of the Load Balancing subsystem in the ASE LLM gateway. Load Balancing is the second decision layer in the request path and is responsible for selecting which backend endpoint should execute a request whose target model has already been resolved.
 
-Its input is an enriched request that already contains an authoritative `model` assignment from Semantic Routing. Its output is a selected backend endpoint plus the dispatch behavior needed to execute the request reliably.
+This document is not a generic overview of traffic distribution. It is the governing design for the dispatch subsystem that receives an authoritative model decision from Semantic Routing, resolves the corresponding backend pool, and selects an execution target under runtime health, capacity, affinity, and reliability constraints.
 
-This document focuses only on instance-level dispatch after model selection. It does not define prompt interpretation, semantic model choice, or policy logic that belongs to `ASE_Semantic_routing.md`.
+Within the overall document set, this file defines instance-level dispatch only. Gateway-wide architecture is defined in `overview.md`, and model-level decision making is defined in `ASE_Semantic_routing.md`.
 
 ## Background
 
-### Problem Definition
+### Subsystem Problem
 
 Load Balancing solves the following problem:
 
-> Given a request with an already resolved target model, and a set of backend endpoints capable of serving that model, select the best execution target while preserving availability, stability, and service efficiency.
+> Given a request with an already resolved target model, and a set of backend endpoints capable of serving that model, select an execution target that preserves availability, stability, and service efficiency.
 
-This is an instance-selection problem, not a model-selection problem.
+This is an instance-selection problem, not a model-selection problem. The semantic question has already been answered upstream. What remains is to map the selected model onto a serving endpoint under current operational conditions.
 
-The subsystem must operate correctly under conditions such as:
+In production, this problem is complicated by partial endpoint failures, uneven request sizes, long-lived streaming requests, heterogeneous backends, administrative drain behavior, and inconsistent telemetry quality across serving systems.
 
-- partial backend failures
-- overloaded endpoints
-- uneven request sizes
-- long-lived streaming requests
-- mixed internal and external backends
-- heterogeneous observability support across serving systems
+### Why This Layer Must Exist
 
-### Why Load Balancing Is a Separate Layer
+Load Balancing exists because choosing where a request should execute is a different problem from choosing what model should execute it.
 
-Once the model has already been selected, the remaining problem is traffic engineering. The load balancer should reason about runtime state such as endpoint health, in-flight requests, queue pressure, locality, retries, and failover. It should not reinterpret prompt semantics or silently change the selected model under normal operation.
+Once the model is fixed, the system must reason about backend health, in-flight load, queue pressure, affinity, retries, redispatch, and recovery behavior. None of these concerns should require the subsystem to reinterpret prompt semantics or revise the model decision under normal operation.
 
-Keeping this behavior in a separate layer provides clear accountability:
+ASE therefore isolates Load Balancing as the layer that owns endpoint choice and runtime dispatch behavior. It must honor the model assignment it receives and operate within that constraint.
 
-- Semantic Routing owns model choice.
-- Load Balancing owns endpoint choice.
+### Design Objectives
 
-### Design Goals
-
-The Load Balancing subsystem is designed to satisfy the following goals:
+The subsystem is designed to achieve the following outcomes:
 
 - dispatch only to endpoints that are eligible to serve the selected model
-- route around unhealthy, overloaded, or drained endpoints
-- keep recovery behavior bounded and predictable
-- keep scheduling overhead low enough for every request path
-- preserve a strict separation from semantic decision making
-- support heterogeneous backends with different runtime telemetry quality
+- route around unhealthy, overloaded, or administratively drained endpoints
+- keep retries, redispatch, and failover bounded and predictable
+- maintain scheduling overhead low enough for the online request path
+- preserve strict separation from semantic model selection
+- support heterogeneous backends with varying telemetry richness
 
-### Design Principles
+### Governing Principles
 
-The subsystem follows these design principles:
+The subsystem follows five governing principles.
 
-- instance-centric rather than model-centric decision making
-- evaluate hard eligibility and health before optimizing for throughput
-- apply constraint filtering before scheduling
-- keep retries, redispatch, and failover explicit and finite
-- treat affinity as a preference rather than an absolute
-- use metrics when available without depending on one backend-specific telemetry format
+First, Load Balancing is instance-centric, not model-centric. Second, health and eligibility must be evaluated before throughput optimization. Third, scheduling decisions should be based on explicit runtime state and declarative policy rather than hidden side effects. Fourth, retries and redispatch must be finite and observable. Fifth, affinity is a preference that improves locality, not an excuse to route to unhealthy endpoints.
 
-ASE draws on mature load-balancer practice for this layer, especially the scheduling vocabulary used by NGINX and the health, retry, and redispatch controls described in HAProxy documentation. Runtime telemetry from systems such as vLLM can be incorporated when available. See [R3], [R4], and [R5].
+ASE aligns this layer with mature load-balancer practice. The scheduling vocabulary used by NGINX, the health and retry controls documented by HAProxy, and rich runtime metrics from systems such as vLLM provide the right conceptual foundation for the subsystem. See [R3], [R4], and [R5].
 
 ## Scope
 
 ### In Scope
 
-This document covers:
+This document defines:
 
-- model-pool resolution
+- model-to-pool resolution
 - endpoint discovery and eligibility evaluation
 - health-aware instance scheduling
-- request dispatch
+- runtime dispatch behavior
 - retry, redispatch, and bounded failover
-- draining and recovery behavior
+- drain and recovery behavior
 - affinity and stickiness policy
 - runtime metrics ingestion for scheduling
-- load-balancing observability
-- configuration and operational considerations for dispatch
+- observability requirements for dispatch decisions
+- configuration and operational requirements specific to instance-level routing
 
 ### Out of Scope
 
@@ -83,30 +70,49 @@ This document does not define:
 
 - semantic model selection
 - prompt classification
-- policy-driven model choice
-- safety-based model restriction at the semantic layer
+- policy-driven model-family choice
+- semantic safety gating that belongs before model resolution
 - plugin logic tied to semantic decision making
 
-Those concerns belong to `ASE_Semantic_routing.md`.
+Those responsibilities belong to `ASE_Semantic_routing.md` or to broader gateway control-plane systems outside this subsystem.
 
 ## Design
 
+### Subsystem Summary
+
+Load Balancing is the authoritative endpoint-selection layer in ASE. It accepts a request whose `model` has already been resolved, maps that model to a backend pool, filters endpoints using health and eligibility rules, applies scheduling policy, and dispatches the request to a concrete execution target.
+
+The key property of the subsystem is that it resolves an endpoint, not a model. Its value comes from making runtime dispatch reliable, observable, and operationally tunable without collapsing back into semantic decision making.
+
 ### Architectural Position
 
-Load Balancing is the second decision layer in the ASE request path:
+Load Balancing appears in the request path as follows:
 
 `Client Request -> Semantic Routing -> Request Enrichment (model=...) -> Load Balancing -> Selected Backend Instance`
 
 Its contract is:
 
-- input: request with resolved `model`
-- output: selected backend endpoint capable of serving that model
+- input: request with resolved `model` plus route metadata
+- output: selected backend endpoint plus dispatch behavior governed by runtime policy
 
-Load Balancing may choose the serving instance, but it may not change the semantic model assignment under normal operation.
+That contract is normative. Load Balancing may decide where the selected model runs, but it may not change what model the request has been assigned.
+
+The subsystem should also produce a stable dispatch outcome contract for observability and downstream control paths.
+
+| Field | Requirement Level | Purpose |
+| --- | --- | --- |
+| `request_id` | required | preserve request identity across semantic and infrastructure decisions |
+| `model` | required | record which semantic model decision this dispatch honored |
+| `pool_id` | required | identify the backend pool chosen for execution |
+| `endpoint_id` | required on success | identify the concrete backend endpoint that was selected |
+| `dispatch_status` | required | distinguish success, immediate failure, retry exhaustion, and pool unavailability |
+| `retry_count` | optional | preserve how much bounded recovery was attempted |
+| `redispatch_count` | optional | record whether recovery required switching endpoints |
+| `dispatch_reason` or algorithm detail | optional | explain why the endpoint was chosen or why dispatch failed |
 
 ### System Design Diagram
 
-The diagram below shows the detailed internal flow of the Load Balancing subsystem after a model has already been selected.
+The diagram below shows the internal flow of the Load Balancing subsystem after model resolution has already completed.
 
 ```mermaid
 flowchart LR
@@ -149,342 +155,145 @@ flowchart LR
     Failure -. failure events .-> Obs
 ```
 
+### Architectural Invariants
+
+The following invariants are mandatory for this subsystem.
+
+1. Load Balancing must not begin until Semantic Routing has resolved the authoritative `model`.
+2. Endpoint selection must remain constrained to the backend pool for that model.
+3. Endpoint health and hard eligibility must be evaluated before scheduling optimization.
+4. Retry and redispatch behavior must be explicit, finite, and observable.
+5. Failure classification must preserve the distinction between semantic success and infrastructure failure.
+
+These invariants define acceptable dispatch behavior even as backend technologies and scheduling implementations evolve.
+
 ### Internal Architecture
 
 The subsystem is composed of six logical components.
 
-#### Pool Resolver
+| Component | Primary Responsibility | Architectural Output |
+| --- | --- | --- |
+| Pool Resolver | map the resolved model to a logical backend pool | pool identity and pool configuration |
+| Endpoint Registry | provide endpoint inventory and static metadata | candidate endpoint universe for the selected pool |
+| Health Manager | maintain endpoint serviceability state | health and drain state used for hard filtering |
+| Scheduler | choose the best endpoint among eligible candidates | selected endpoint and scheduling rationale |
+| Reliability Controller | apply retry, redispatch, and dispatch-time failover policy | dispatch outcome and bounded recovery behavior |
+| Metrics Adapter | normalize generic and backend-native telemetry | scheduler-facing runtime metrics |
 
-This component maps the resolved `model` field to a backend pool definition.
-
-Responsibilities:
-
-- model-to-pool lookup
-- pool membership retrieval
-- endpoint metadata loading
-- priority and weight loading
-
-#### Endpoint Registry
-
-This component maintains the set of known endpoints and their static metadata.
-
-Responsibilities:
-
-- endpoint identity
-- address and protocol metadata
-- supported model mapping
-- deployment type
-- configured weight
-- locality metadata
-- drain status
-
-#### Health Manager
-
-This component tracks the operational state of each endpoint.
-
-Responsibilities:
-
-- active health-check results
-- passive failure observations
-- endpoint state transitions such as `up`, `degraded`, `down`, and `draining`
-- recovery gating for unstable endpoints
-
-#### Scheduler
-
-This component selects a single eligible endpoint for a request.
-
-Responsibilities:
-
-- apply scheduling policy
-- enforce affinity when appropriate
-- select among healthy candidates
-- support fallback ordering
-
-#### Reliability Controller
-
-This component applies dispatch-time reliability behavior.
-
-Responsibilities:
-
-- classify dispatch failures
-- apply connect-time retry policy
-- control redispatch
-- enforce bounded failover
-- suppress unstable endpoints when required
-
-#### Metrics Adapter
-
-This component normalizes runtime signals from different backend types.
-
-Responsibilities:
-
-- ingest generic health and latency telemetry
-- ingest backend-native metrics when available
-- normalize scheduler-facing runtime state
-- expose a consistent metrics interface to the scheduler
+The architecture is intentionally staged. Pool resolution defines the search space, endpoint and health data constrain that space, the scheduler selects within it, and the reliability controller manages the execution attempt.
 
 ### Backend Pool Model
 
-Load Balancing should schedule within logical pools associated with the selected model.
+Load Balancing schedules within logical backend pools associated with the resolved model.
 
-#### Logical Pooling
+Each pool should be treated as the execution domain for a specific semantic decision. The subsystem should not search globally across all backends once a model has already been selected.
 
-Each routable model maps to a logical backend pool.
+Each pool definition should expose, at minimum:
 
-Examples:
+- the resolved model or model alias it serves
+- endpoint membership
+- endpoint priority and weight
+- backend type and protocol information
+- deployment-zone or locality metadata
+- any pool-specific scheduling or reliability overrides
 
-- `general-small` -> Pool A
-- `code-large` -> Pool B
-- `reasoning-private-long` -> Pool C
-
-This keeps Load Balancing focused on the endpoints that can actually serve the resolved model.
-
-#### Pool Membership
-
-Each pool should define at least:
-
-- endpoint IDs
-- addresses and protocols
-- weights
-- supported deployment zones
-- endpoint priority
-- external or internal backend type
-
-#### Pool Types
-
-ASE should support more than one kind of pool:
-
-- homogeneous internal pools
-- heterogeneous internal pools with weighted balancing
-- external provider pools
-- hybrid fallback pools
-- compliance-scoped pools restricted by region or tenant
+ASE should support more than one kind of pool, including homogeneous internal pools, heterogeneous weighted pools, external provider pools, hybrid fallback pools, and compliance-scoped pools restricted by tenant or region.
 
 ### Scheduling Inputs
 
-The scheduler should reason over multiple input classes.
+The scheduler operates on a structured runtime view assembled from four input classes.
 
-#### Static Inputs
+| Input Class | Purpose | Representative Inputs |
+| --- | --- | --- |
+| Static Pool Inputs | define the dispatch domain and configured policy | selected model, pool membership, weights, locality, endpoint priority |
+| Health Inputs | determine whether an endpoint is serviceable | active health state, passive failure rate, circuit state, drain state |
+| Runtime Load Inputs | describe current execution pressure | in-flight requests, queue depth, latency, token throughput, rate-limit status |
+| Affinity Inputs | preserve useful locality where possible | session ID, conversation ID, tenant ID, sticky hash |
 
-These do not change frequently.
+Without these inputs, endpoint choice becomes blind traffic spreading. With them, Load Balancing becomes a controlled scheduling problem grounded in current system state.
 
-Examples:
+### Dispatch Framework
 
-- selected model
-- pool membership
-- configured weights
-- endpoint locality
-- affinity rules
-- endpoint priority
+Dispatch should be understood as a staged reduction process rather than a single opaque scheduling step.
 
-#### Health Inputs
+#### Stage 1: Resolve Pool
 
-These describe endpoint serviceability.
+The subsystem maps the resolved `model` field to the logical backend pool that is allowed to serve it. This establishes the execution domain for the request.
 
-Examples:
+#### Stage 2: Build Candidate Set
 
-- active health-check status
-- passive failure rate
-- circuit-open state
-- drain state
+The subsystem retrieves all endpoints that belong to the selected pool together with their static metadata and current runtime state.
 
-#### Runtime Load Inputs
+#### Stage 3: Apply Hard Exclusions
 
-These describe current execution pressure.
+Endpoints that are down, draining, policy-ineligible, locality-ineligible, or otherwise incapable of serving the request are removed first. Scheduling must not optimize over endpoints that should never receive traffic.
 
-Examples:
+#### Stage 4: Apply Affinity Preference
 
-- in-flight requests
-- queue depth
-- observed latency
-- token throughput
-- rate-limit status
-- cache pressure when available
+If stickiness is enabled, the subsystem should prefer the previously associated endpoint when it remains healthy and eligible. Affinity is applied after hard exclusion because locality cannot override serviceability.
 
-#### Affinity Inputs
+#### Stage 5: Select Endpoint
 
-These preserve useful locality when possible.
+The scheduler chooses the best endpoint among the remaining candidates using the configured scheduling algorithm and available runtime metrics.
 
-Examples:
+#### Stage 6: Dispatch and Observe
 
-- session ID
-- conversation ID
-- tenant ID
-- sticky key derived from request metadata
+The subsystem dispatches the request, classifies the outcome, and updates health, reliability, and observability state accordingly.
 
-### Scheduling Pipeline
+This staged framework is central to explainability. It allows operators to understand not only which endpoint was chosen, but why other endpoints were excluded or deprioritized.
 
-Requests should move through the following scheduling pipeline.
+### Scheduling Model
 
-#### Step 1: Resolve Pool
+Load Balancing should support a family of scheduling strategies rather than a single fixed algorithm. Different backend topologies favor different policies.
 
-Read the resolved `model` field and map it to a backend pool.
+| Scheduling Strategy | Best Fit | Primary Tradeoff |
+| --- | --- | --- |
+| Round Robin / Weighted Round Robin | simple or relatively homogeneous pools | low overhead, limited runtime sensitivity |
+| Least Connections / Least In-Flight | variable-duration or streaming workloads | better concurrency awareness, needs current state |
+| Hash / Affinity-Based Placement | cache locality or session continuity sensitive workloads | stronger locality, weaker short-term fairness |
+| Priority / Weighted Failover | primary-backup or tiered backend topologies | explicit preference ordering, less even spread |
+| Metrics-Aware Scheduling | rich telemetry environments | better adaptation, stronger dependency on telemetry quality |
 
-#### Step 2: Build Candidate Set
-
-Load all endpoints that belong to the selected pool.
-
-#### Step 3: Apply Hard Exclusions
-
-Remove endpoints that are down, draining, disallowed by locality or policy, or otherwise ineligible.
-
-#### Step 4: Apply Affinity Preference
-
-If stickiness is enabled, prefer the previously associated endpoint when it remains healthy and eligible.
-
-#### Step 5: Apply Scheduling Algorithm
-
-Select the best endpoint among the remaining candidates using the configured algorithm and runtime state.
-
-#### Step 6: Dispatch
-
-Forward the request to the chosen endpoint.
-
-#### Step 7: Observe Outcome
-
-Record whether the attempt succeeded, failed before execution, or failed after dispatch began.
-
-#### Step 8: Update Runtime State
-
-Feed the observed outcome back into health, reliability, and metrics systems.
-
-### Supported Scheduling Algorithms
-
-ASE should support multiple algorithms because no single policy fits every serving stack.
-
-#### Round Robin and Weighted Round Robin
-
-These are suitable for simpler or more homogeneous pools where load is relatively even and minimal scheduling overhead is desired.
-
-#### Least Connections and Least In-Flight
-
-These are better suited for variable request durations and long-lived streaming traffic because they react to concurrency rather than just request count.
-
-#### Hash and Affinity-Based Routing
-
-These are useful when cache locality, session continuity, or backend warm state matters more than perfect short-term fairness.
-
-#### Priority and Weighted Failover
-
-These support preferred pools or endpoints with backup ordering when the primary set is unavailable or degraded.
-
-#### Metrics-Aware Scheduling
-
-These strategies incorporate telemetry such as queue depth, latency, token pressure, or cache state when the backend exposes reliable metrics.
-
-The initial ASE deployment can start with weighted round robin or least in-flight and later evolve toward richer metrics-aware policies without changing the layer boundary.
+The initial ASE deployment can start with simpler strategies such as weighted round robin or least in-flight and evolve toward richer metrics-aware approaches without changing the subsystem boundary.
 
 ### Health Model
 
-Endpoint health should be modeled explicitly rather than inferred ad hoc during dispatch.
+Endpoint health must be modeled explicitly. Dispatch quality depends on being able to distinguish endpoints that are healthy, degraded, unavailable, or draining for administrative reasons.
 
-#### Endpoint States
-
-Recommended states include:
+Recommended endpoint states include:
 
 - `up`
 - `degraded`
 - `down`
 - `draining`
 
-Each state should have clear scheduling semantics so that operators can predict how traffic will move during incidents and maintenance.
+Health state should be informed by both active and passive signals. Active checks detect connectivity or service-level failure independently of live traffic. Passive signals react to observed outcomes such as connection failure, timeout, HTTP failure classes, or abrupt stream termination.
 
-#### Active Health Checks
+Recovery must also be policy-controlled. An endpoint that has just recovered should not necessarily receive full traffic immediately. Gradual re-entry or controlled reinstatement is preferable when recent instability suggests recovery may be incomplete.
 
-Active checks are periodic probes used to detect connectivity or service-level failure before user traffic is affected.
+### Reliability Model
 
-Typical uses:
+Reliability behavior is part of the subsystem design, not an implementation afterthought.
 
-- remove failed endpoints from rotation
-- validate recovery before re-entry
-- distinguish transient network issues from prolonged unavailability
+Retries should be finite and policy-controlled. Redispatch should occur only when the failure mode and request semantics make it safe to do so. Failover should remain bounded and observable rather than open-ended.
 
-#### Passive Health Signals
+Safe retry scenarios usually involve failures before execution begins, such as connection failure, TLS establishment failure, or immediate admission rejection. Unsafe retry scenarios usually involve the possibility that execution already began, such as partial streamed responses, ambiguous upstream timeouts, or tool side effects.
 
-Passive signals come from live request outcomes.
+If retry and redispatch are exhausted, the subsystem must emit a clear infrastructure failure rather than silently collapsing the error into a semantic-routing problem.
 
-Examples:
+### Affinity and Locality Model
 
-- connection failures
-- timeout rate
-- HTTP failure classes
-- abrupt stream termination
+Affinity exists to improve locality, not to weaken availability.
 
-Passive signals help the balancer react faster than active checks alone.
+Useful affinity keys include session ID, conversation ID, tenant ID, and request-class hashes that approximate cache reuse or backend warm state. Affinity may improve session continuity, prefix-cache locality, and hot-state reuse, but it should always remain subordinate to endpoint eligibility and health.
 
-#### Recovery Policy
-
-Recovered endpoints should not immediately receive full traffic. Gradual re-entry or controlled reinstatement is preferable when an endpoint has recently been unstable.
-
-### Retry, Redispatch, and Failover
-
-Reliability behavior must be explicit and bounded.
-
-#### Retry Principle
-
-Retries should be finite and policy-controlled. Unlimited or ambiguous retries create duplicate work, unstable latency, and hard-to-debug failure patterns.
-
-#### Safe Retry Cases
-
-Retries are typically safe when failure occurs before the backend begins executing the request, such as:
-
-- connection failure
-- TLS setup failure
-- immediate admission rejection before execution
-
-#### Unsafe Retry Cases
-
-Retries are typically unsafe when execution may already have started, such as:
-
-- partial streamed responses
-- ambiguous upstream timeout after possible execution
-- side effects triggered through tools or external systems
-
-#### Redispatch Policy
-
-When retry is allowed, ASE may redispatch to a different endpoint in the same pool if policy permits and another healthy candidate exists.
-
-#### Escalation to Higher-Level Failure
-
-If retries and redispatch are exhausted, the subsystem should emit a clear infrastructure failure rather than silently collapsing the error into a semantic routing problem.
-
-### Affinity and Stickiness
-
-Affinity can improve locality and user experience but should remain subordinate to availability.
-
-#### Purpose
-
-Stickiness can preserve:
-
-- session continuity
-- prefix-cache locality
-- backend warm state
-- tenant or conversation locality
-
-#### Affinity Keys
-
-Useful keys include:
-
-- session ID
-- conversation ID
-- tenant ID
-- request-class hash
-
-#### Affinity Rule
-
-Affinity should be treated as a preference. If the preferred endpoint is unhealthy, drained, or overloaded beyond policy, the scheduler should select another candidate rather than forcing a bad placement.
-
-#### Consistent Placement
-
-Consistent hashing or deterministic sticky mapping may be used where stable placement matters more than perfect traffic spread.
+Consistent placement strategies may be used where stable assignment matters, but the subsystem must still be able to break affinity when the preferred endpoint is unhealthy, draining, or overloaded beyond policy.
 
 ### Metrics and Runtime State
 
-The scheduler should be able to work with both generic and backend-native telemetry.
+The subsystem should be able to operate correctly using generic telemetry and improve when richer backend-native telemetry exists.
 
-#### Generic Metrics
-
-Metrics that should be usable across backend types include:
+Generic metrics that should work across backend types include:
 
 - endpoint health state
 - request latency
@@ -493,55 +302,28 @@ Metrics that should be usable across backend types include:
 - timeout rate
 - dispatch success rate
 
-#### Backend-Native Metrics
+When available, richer backend-native telemetry may also be incorporated, such as queue depth, token throughput, GPU utilization, KV cache usage, and prefix-cache hit potential. vLLM-style metrics endpoints are particularly useful in this category. See [R5].
 
-When available, ASE may incorporate richer signals such as:
-
-- queue depth
-- token throughput
-- GPU utilization
-- KV cache usage
-- prefix-cache hit potential
-
-vLLM-style metrics endpoints are especially useful for this class of runtime-aware scheduling. See [R5].
-
-#### Metrics Portability Principle
-
-ASE should benefit from rich telemetry without depending on one serving stack. If advanced metrics are unavailable, the subsystem must still function correctly using generic health and latency signals.
+The architectural principle is portability: ASE should benefit from rich metrics without depending on a single serving stack in order to function correctly.
 
 ### Failure Semantics
 
-Load Balancing should classify failures based on dispatch stage.
+Load Balancing must classify failures by dispatch stage so that operators can distinguish an endpoint-selection failure from a semantic-routing failure.
 
-#### No Eligible Endpoint
+| Failure Class | Meaning | Typical Cause |
+| --- | --- | --- |
+| No Eligible Endpoint | the selected model resolves to a pool, but no endpoint is eligible to serve it | all endpoints down, draining, policy-ineligible, or filtered out |
+| Dispatch Failure | an eligible endpoint was chosen, but the immediate dispatch attempt failed | connect failure, admission failure, protocol failure |
+| Retry Exhaustion | a dispatch failure was retried or redispatched within policy, but all attempts failed | repeated connect failures, repeated endpoint instability |
+| Pool Unavailable | the pool as a whole cannot currently serve traffic | pool-wide outage, full drain, region-wide restriction |
 
-The selected model resolves to a pool, but no endpoint is currently eligible to serve the request.
-
-#### Dispatch Failure
-
-The chosen endpoint was eligible, but the immediate dispatch attempt failed.
-
-#### Retry Exhaustion
-
-A dispatch failure was retried or redispatched according to policy, but all allowed attempts failed.
-
-#### Pool Unavailable
-
-The entire serving pool is unavailable due to health, drain, or policy constraints.
-
-#### Why This Matters
-
-These failure classes let operators distinguish:
-
-- semantic success followed by infrastructure failure
-- isolated endpoint failure versus pool-wide outage
-- transient connect problems versus repeated dispatch instability
+These categories matter because they let operators distinguish semantic success followed by infrastructure failure, isolated endpoint instability, and pool-wide unavailability.
 
 ### Observability
 
-Load Balancing must expose operationally useful telemetry because its decisions are runtime-sensitive.
+Load Balancing must expose operationally useful telemetry because its decisions are driven by runtime state and often change rapidly under load.
 
-#### Core Metrics
+Core metrics should include:
 
 - pool-resolution count
 - endpoint-selection count by endpoint and pool
@@ -552,45 +334,26 @@ Load Balancing must expose operationally useful telemetry because its decisions 
 - pool-unavailable count
 - drain-state traffic volume
 
-#### Recommended Dashboards
+Useful trace or log fields include request ID, selected model, resolved pool, selected endpoint, scheduling algorithm, retry count, redispatch count, and final dispatch outcome.
 
-Operators should be able to see:
-
-- endpoint health by pool
-- request volume by selected model and backend pool
-- retry and redispatch trends
-- latency and failure distribution by endpoint
-- drained or degraded endpoint behavior during maintenance or incidents
-
-#### Trace Fields
-
-Useful trace or log fields include:
-
-- request ID
-- selected model
-- resolved pool
-- selected endpoint
-- scheduling algorithm
-- retry count
-- redispatch count
-- final dispatch outcome
+The minimum dispatch trace should preserve enough state to reconstruct the path from resolved model, to pool, to candidate filtering, to selected endpoint, to final dispatch result.
 
 ### Configuration Model
 
-The subsystem should be configured declaratively.
+The subsystem should be configured declaratively rather than through code changes. This is necessary so that scheduling and reliability policy remain reviewable and tunable as fleet conditions evolve.
 
-#### Configuration Domains
+The configuration surface should at least cover:
 
 - model-to-pool mapping
 - endpoint registry
 - health-check policy
 - retry policy
 - redispatch policy
-- scheduling algorithm
-- stickiness policy
-- metrics adapters
+- scheduling algorithm selection
+- stickiness or affinity policy
+- metrics-adapter bindings
 
-#### Example Logical Structure
+An illustrative logical configuration is shown below.
 
 ```yaml
 load_balancing:
@@ -620,13 +383,13 @@ load_balancing:
           weight: 100
 ```
 
-This structure is intentionally logical rather than implementation-specific. The important property is that scheduling and reliability policy remain reviewable and changeable without code edits.
+The exact DSL is implementation-specific. The architectural requirement is that dispatch and reliability behavior remain declarative, reviewable, and versioned.
 
-### Security and Operational Considerations
+### Security and Operational Implications
 
-Although Load Balancing is not the semantic governance layer, it still has important security and operational responsibilities.
+Although Load Balancing is not the semantic governance layer, it is still a security- and operations-relevant subsystem because it controls the actual execution path to backend systems.
 
-It should support:
+At minimum, it should support:
 
 - explicit endpoint allowlists
 - protocol and TLS policy per backend
@@ -636,6 +399,12 @@ It should support:
 - telemetry suitable for incident response
 
 These controls make the dispatch layer operationally trustworthy without turning it into a semantic policy engine.
+
+### Architectural Consequences
+
+This design makes dispatch behavior tunable and observable, but it also imposes obligations on the implementation.
+
+The subsystem must maintain a stable model-to-pool contract, preserve explicit health semantics, and keep retry and redispatch behavior visible to operators. It must also resist architectural drift. If prompt meaning or business policy starts to directly drive endpoint selection inside this layer, or if this layer silently rewrites model choice during failure handling, the boundary with Semantic Routing has been violated and the design has degraded.
 
 ## References
 
