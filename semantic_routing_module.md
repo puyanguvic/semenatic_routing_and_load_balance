@@ -91,20 +91,13 @@ ASE follows a `select -> route` process.
 - The selected artifact is a logical model or logical-model alias carried in the normalized `model` field.
 - The downstream Load Balancing Module owns endpoint routing for that already selected logical model.
 
-This means the Semantic Routing Module is primarily a request-understanding and policy-matching module. It decides what class of capability the request needs. It does not decide which provider endpoint should execute that capability.
+This means the Semantic Routing Module is primarily a request-understanding and policy-matching module. In paper-aligned terms, it covers `signals -> decide -> select`. It decides what class of capability the request needs. It may run policy or selection plugins that shape the logical-model decision, but it does not decide which provider endpoint should execute that capability.
 
 ### Module at a Glance
 
 The diagram below summarizes the Semantic Routing Module before the more detailed internal design diagram.
 
-```mermaid
-flowchart LR
-    A[Request] --> B[Signal Extraction<br/>semantics + complexity + modality + safety]
-    B --> C[Policy and Constraint Evaluation]
-    C --> D[Decision and Select]
-    D --> E[Logical Model]
-    E --> F[Handoff to Load Balancing Module]
-```
+![Semantic Routing module overview](diagrams/semantic-routing-module-overview.svg)
 
 ### Architectural Position
 
@@ -140,11 +133,11 @@ flowchart LR
 
     subgraph Router[Semantic Routing Module]
         Normalize[Request Normalizer]
-        Signals[Signal Extraction Engine]
+        Signals[Input Layer<br/>signal extraction]
         Filter[Eligibility and Constraint Filter]
-        Decide[Decision Engine]
-        Plugins[Policy Plugin Chain]
-        Output[Enriched Request<br/>logical model + route metadata]
+        Decide[Decision Blocks]
+        Plugins[Selection and Policy Plugin Chain]
+        Output[Enriched Request<br/>selected logical model + handoff metadata]
         Reject[Semantic Failure<br/>no eligible logical model or policy denial]
     end
 

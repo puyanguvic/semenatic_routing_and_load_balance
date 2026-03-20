@@ -90,22 +90,15 @@ ASE follows a `select -> route` process.
 
 - The Semantic Routing Module owns semantic analysis and logical-model selection.
 - The Load Balancing Module owns endpoint-pool resolution and provider-endpoint routing.
-- This module corresponds to the execution `route` stage, not the semantic `select` stage.
+- This module corresponds to the execution `route` stage, and is closest to the paper's `endpoint router`, not the semantic `select` stage.
 
-This means the Load Balancing Module is primarily a resource-scheduling and availability module. It decides where the already selected capability should execute. It does not decide what capability class the request needs.
+This means the Load Balancing Module is primarily a resource-scheduling and availability module. It resolves the selected logical model to a concrete endpoint, then applies weighted routing, session affinity, provider adaptation, and failover behavior. It does not decide what capability class the request needs.
 
 ### Module at a Glance
 
 The diagram below summarizes the Load Balancing Module before the more detailed internal design diagram.
 
-```mermaid
-flowchart LR
-    A[Logical Model] --> B[Endpoint Pool Resolution]
-    B --> C[Eligible Provider Endpoints]
-    C --> D[Scheduler<br/>weight + affinity + locality + load]
-    D --> E[Selected Provider Endpoint]
-    E --> F[Dispatch / Retry / Failover]
-```
+![Load Balancing module overview](diagrams/load-balancing-module-overview.svg)
 
 ### Architectural Position
 
@@ -153,8 +146,8 @@ flowchart LR
         Pool[Pool Resolver]
         Candidates[Candidate Set Builder]
         Filter[Eligibility and Health Filter]
-        Scheduler[Scheduler]
-        Dispatch[Reliability Controller<br/>dispatch, retry, redispatch]
+        Scheduler[Endpoint Router<br/>weighted routing + affinity]
+        Dispatch[Provider Adapter and Recovery<br/>dispatch, retry, redispatch]
         Backend[Chosen Provider Endpoint]
         Failure[Infrastructure Failure<br/>no eligible endpoint or retry exhausted]
     end

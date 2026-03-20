@@ -106,24 +106,15 @@ Those details belong in the module design documents.
 
 ASE is a semantic routing and load balancing system positioned between client applications and a heterogeneous serving environment. Northbound, it presents a stable gateway interface to internal applications and services. Southbound, it can route to internal inference clusters, external provider APIs, region-specific deployments, or compliance-scoped model pools.
 
-ASE does not treat all downstream targets as interchangeable. Instead, it resolves each request in two stages. The Semantic Routing Module determines what logical model should run. The Load Balancing Module determines which concrete provider endpoint should run that logical model. The architecture deliberately separates these two decisions so that policy reasoning and traffic engineering can each remain coherent.
+ASE does not treat all downstream targets as interchangeable. Instead, it resolves each request in two stages. The Semantic Routing Module determines what logical model should run through signal extraction, decision blocks, and policy-guided selection. The Load Balancing Module then acts as the endpoint router: it resolves that logical model to a concrete provider endpoint and applies execution-time routing behavior. The architecture deliberately separates quality optimization from infrastructure optimization so that policy reasoning and traffic engineering can each remain coherent.
 
-ASE therefore follows a `select -> route` process. The Semantic Routing Module owns signal extraction, decision logic, and logical-model selection. The Load Balancing Module owns endpoint-pool resolution, provider-endpoint routing, and execution-time recovery behavior.
+ASE therefore follows a `select -> route` process. In paper-aligned terms, the semantic stage owns `signals -> decide -> select`, while the route stage owns endpoint-pool resolution, endpoint routing, provider adaptation, and recovery behavior.
 
 ### Architecture at a Glance
 
 The diagram below gives the shortest possible reading of ASE.
 
-```mermaid
-flowchart LR
-    A[Client Request] --> B[Semantic Routing Module<br/>signals + policy + logical-model select]
-    B --> C[Boundary<br/>logical model in model field]
-    C --> D[Load Balancing Module<br/>pool resolve + scheduling + failover]
-    D --> E[Provider Endpoint]
-
-    B -. select .-> C
-    D -. route .-> E
-```
+![ASE architecture at a glance](diagrams/architecture-at-a-glance.svg)
 
 ### System Design Diagram
 
@@ -138,15 +129,16 @@ flowchart LR
 
         subgraph SR[Module 1: Semantic Routing]
             Normalize[Request Normalization]
-            Route[Signal Extraction, Decision,<br/>and Logical Model Selection]
+            Signals[Signal Extraction]
+            Route[Decision Blocks and<br/>Logical Model Selection]
         end
 
-        Boundary[Request Enrichment<br/>logical model + route metadata]
+        Boundary[Request Enrichment<br/>selected logical model + handoff metadata]
 
         subgraph LB[Module 2: Load Balancing]
             Pool[Endpoint Pool Resolution]
-            Select[Provider Endpoint Eligibility<br/>and Scheduling]
-            Dispatch[Route, Retry, and Failover]
+            Select[Endpoint Router<br/>weighted routing + affinity]
+            Dispatch[Provider Dispatch,<br/>auth, retry, and failover]
         end
 
         Obs[Observability and Control]
@@ -159,7 +151,7 @@ flowchart LR
         Regional[Regional and Compliance Pools]
     end
 
-    Client --> Ingress --> Normalize --> Route --> Boundary --> Pool --> Select --> Dispatch
+    Client --> Ingress --> Normalize --> Signals --> Route --> Boundary --> Pool --> Select --> Dispatch
     Health --> Pool
     Health --> Select
     Dispatch --> Internal
@@ -167,8 +159,8 @@ flowchart LR
     Dispatch --> Regional
 
     Ingress -. telemetry .-> Obs
-    Route -. routing trace .-> Obs
-    Select -. scheduling trace .-> Obs
+    Route -. selection trace .-> Obs
+    Select -. endpoint-routing trace .-> Obs
     Dispatch -. dispatch metrics .-> Obs
 ```
 
