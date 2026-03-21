@@ -106,9 +106,9 @@ Those details belong in the module design documents.
 
 ASE is a semantic routing and load balancing system positioned between client applications and a heterogeneous serving environment. Northbound, it presents a stable gateway interface to internal applications and services. Southbound, it can route to internal inference clusters, external provider APIs, region-specific deployments, or compliance-scoped model pools.
 
-ASE does not treat all downstream targets as interchangeable. Instead, it resolves each request in two stages. The Semantic Routing Module determines what logical model should run through signal extraction, decision blocks, and policy-guided selection. The Load Balancing Module then acts as the endpoint router: it resolves that logical model to a concrete provider endpoint and applies execution-time routing behavior. The architecture deliberately separates quality optimization from infrastructure optimization so that policy reasoning and traffic engineering can each remain coherent.
+ASE does not treat all downstream targets as interchangeable. Instead, it resolves each request in two stages. The Semantic Routing Module determines what logical model should run through a semantic-router-aligned signal-driven core: request normalization, configured signal extraction, decision matching, model selection, and per-decision plugins. The Load Balancing Module then acts as the endpoint router: it resolves that logical model to a concrete provider endpoint and applies execution-time routing behavior. The architecture deliberately separates quality optimization from infrastructure optimization so that policy reasoning and traffic engineering can each remain coherent.
 
-ASE therefore follows a `select -> route` process. In paper-aligned terms, the semantic stage owns `signals -> decide -> select`, while the route stage owns endpoint-pool resolution, endpoint routing, provider adaptation, and recovery behavior.
+ASE therefore follows a `select -> route` process. More precisely, the semantic stage owns `signals -> decisions -> model selection -> plugins`, while the route stage owns endpoint-pool resolution, endpoint routing, provider adaptation, and recovery behavior.
 
 ### Architecture at a Glance
 
@@ -118,51 +118,9 @@ The diagram below gives the shortest possible reading of ASE.
 
 ### System Design Diagram
 
-The diagram below shows the overall system structure and the explicit handoff between the two decision stages.
+The diagram below shows the overall system structure and the explicit handoff between the two decision stages. Stage 1 is aligned to semantic-router's semantic core, while Stage 2 remains ASE's execution-routing layer.
 
-```mermaid
-flowchart LR
-    Client[Client Applications]
-
-    subgraph ASE[ASE Semantic Routing and Load Balancing]
-        Ingress[Northbound Interface]
-
-        subgraph SR[Module 1: Semantic Routing]
-            Normalize[Request Normalization]
-            Signals[Signal Extraction]
-            Route[Decision Blocks and<br/>Logical Model Selection]
-        end
-
-        Boundary[Request Enrichment<br/>selected logical model + handoff metadata]
-
-        subgraph LB[Module 2: Load Balancing]
-            Pool[Endpoint Pool Resolution]
-            Select[Endpoint Router<br/>weighted routing + affinity]
-            Dispatch[Provider Dispatch,<br/>auth, retry, and failover]
-        end
-
-        Obs[Observability and Control]
-        Health[Backend Registry and Health State]
-    end
-
-    subgraph Backends[Serving Environment]
-        Internal[Internal Model Pools]
-        External[External Provider APIs]
-        Regional[Regional and Compliance Pools]
-    end
-
-    Client --> Ingress --> Normalize --> Signals --> Route --> Boundary --> Pool --> Select --> Dispatch
-    Health --> Pool
-    Health --> Select
-    Dispatch --> Internal
-    Dispatch --> External
-    Dispatch --> Regional
-
-    Ingress -. telemetry .-> Obs
-    Route -. selection trace .-> Obs
-    Select -. endpoint-routing trace .-> Obs
-    Dispatch -. dispatch metrics .-> Obs
-```
+![ASE system design](diagrams/architecture-system-design.svg)
 
 ### System Context
 
@@ -190,7 +148,7 @@ The northbound interface receives requests from applications, performs gateway-l
 
 #### Semantic Routing Module
 
-The Semantic Routing Module is the first decision stage. It evaluates request content, control metadata, policy context, tenant context, and business objectives in order to produce an authoritative logical-model decision. Its output is not a backend host; its output is a routing decision expressed as `model=<resolved-logical-model>` plus optional routing metadata.
+The Semantic Routing Module is the first decision stage. It evaluates request content, control metadata, policy context, tenant context, and business objectives through configured signals, decision rules, model-selection algorithms, and per-decision plugins in order to produce an authoritative logical-model decision. Its output is not a backend host; its output is a routing decision expressed as `model=<resolved-logical-model>` plus optional routing metadata.
 
 #### Request Enrichment Boundary
 
@@ -228,7 +186,7 @@ At a high level, request handling proceeds as follows.
 1. A client sends a request to ASE.
 2. ASE performs gateway-level ingress handling and request normalization.
 3. The Semantic Routing Module evaluates the request and resolves the target logical model.
-4. The request is enriched with the authoritative `model` assignment and associated route metadata.
+4. The request is enriched with the authoritative `model` assignment, matched semantic decision, and associated route metadata.
 5. The Load Balancing Module resolves the endpoint pool for that logical model.
 6. The Load Balancing Module filters ineligible endpoints, applies scheduling policy, and dispatches the request.
 7. ASE returns the response and records the decision and execution trace needed for audit and operations.
@@ -250,6 +208,7 @@ The minimum handoff contract between the two modules should be treated as follow
 | `request_id` | gateway ingress and Semantic Routing Module path | Load Balancing Module and observability systems | preserve request identity across both decision stages |
 | `model` | Semantic Routing Module | Load Balancing Module | carry the authoritative logical-model identifier that defines the only endpoint pool the dispatch module may schedule within |
 | `route_decision_status` | Semantic Routing Module | Load Balancing Module and operators | distinguish successful logical-model resolution from semantic rejection |
+| `matched_decision` | Semantic Routing Module | operators, audit, optional downstream diagnostics | preserve which semantic decision rule matched before model selection completed |
 | `route_reason` | Semantic Routing Module | operators, audit, optional downstream diagnostics | preserve why the logical-model decision was made |
 | `policy_tags` | Semantic Routing Module | Load Balancing Module and audit systems | carry governance-relevant annotations that may constrain dispatch |
 | `trace_id` or equivalent | observability path | both layers and operators | correlate semantic and infrastructure decisions in one trace |
@@ -258,7 +217,7 @@ The ownership boundary should be interpreted as follows.
 
 | Module | Owns | Explicitly Does Not Own |
 | --- | --- | --- |
-| Semantic Routing Module | request understanding; routing signal extraction; logical-model eligibility and policy evaluation; final logical-model selection; request enrichment with the resolved `model`; semantic rationale and routing trace | per-endpoint health management; queue-aware scheduling; connection retry mechanics; pool-level failover sequencing |
+| Semantic Routing Module | request understanding; configured `routing.signals` evaluation; `routing.decisions` matching; logical-model eligibility and policy evaluation; model selection over `modelRefs`; per-decision plugins; request enrichment with the resolved `model`; semantic rationale and routing trace | per-endpoint health management; queue-aware scheduling; connection retry mechanics; pool-level failover sequencing |
 | Load Balancing Module | logical-model-to-pool resolution; endpoint discovery and eligibility; health-aware filtering; provider-endpoint scheduling; retry, redispatch, and dispatch-time failover; runtime dispatch telemetry | prompt interpretation; task classification; policy-driven logical-model choice under normal operation; semantic optimization across model families |
 
 This table is normative. If future changes cause either layer to absorb responsibilities from the other without revisiting this overview, the architecture has drifted.
@@ -267,7 +226,7 @@ This table is normative. If future changes cause either layer to absorb responsi
 
 The two-module decision model has several direct consequences for the system.
 
-It improves explainability because a routing outcome can be decomposed into two auditable decisions rather than one opaque result. It improves operability because policy tuning and traffic tuning can proceed independently. It improves extensibility because new logical models can be introduced at the semantic layer without redesigning endpoint scheduling, and new endpoint-routing strategies can be introduced without rewriting model-selection policy.
+It improves explainability because a routing outcome can be decomposed into two auditable decisions rather than one opaque result. It improves operability because policy tuning and traffic tuning can proceed independently. It improves extensibility because new routing decisions, model cards, and model-selection algorithms can be introduced at the semantic layer without redesigning endpoint scheduling, and new endpoint-routing strategies can be introduced without rewriting semantic routing policy.
 
 It also separates optimization concerns. The Semantic Routing Module performs request-understanding-driven optimization over logical-model capability, policy fit, and quality envelope. The Load Balancing Module performs execution-layer optimization over provider choice, endpoint availability, affinity, locality, and equivalent-route cost within the already selected logical model.
 
@@ -279,7 +238,7 @@ The architecture separates failures by the module that owns the failed decision.
 
 #### Semantic Failure
 
-Semantic failure occurs before dispatch, when ASE cannot normalize the request, cannot identify an eligible logical model, or denies the request based on policy or governance rules. These failures belong to the semantic decision path and should be surfaced as such.
+Semantic failure occurs before dispatch, when ASE cannot normalize the request, cannot match a valid semantic decision, cannot identify an eligible logical model, or denies the request based on policy or governance rules. These failures belong to the semantic decision path and should be surfaced as such.
 
 #### Infrastructure Failure
 
@@ -293,7 +252,7 @@ At the overview level, the required failure classification is:
 
 | Failure Class | Decision Point | Representative Causes | Operational Meaning |
 | --- | --- | --- | --- |
-| Semantic Failure | before dispatch | invalid request, no eligible logical model, policy denial | the request could not be lawfully or correctly mapped to a logical model |
+| Semantic Failure | before dispatch | invalid request, no matching decision, no eligible logical model, policy denial | the request could not be lawfully or correctly mapped to a logical model |
 | Infrastructure Failure | after logical-model selection | no healthy endpoint, dispatch failure, retry exhaustion | the logical-model decision was made, but the serving system could not execute it |
 
 ### Deployment Model
@@ -338,6 +297,7 @@ The overview-level observability requirement is straightforward: operators must 
 At minimum, ASE should expose enough telemetry to answer the following questions:
 
 - what request entered the system
+- which semantic decision matched
 - which logical model was selected
 - which endpoint pool was resolved
 - which provider endpoint was chosen
@@ -346,13 +306,13 @@ At minimum, ASE should expose enough telemetry to answer the following questions
 
 These signals are required for explainability, SRE operations, capacity analysis, and policy debugging. The module design documents define the detailed fields and metrics, but the architectural requirement originates here.
 
-The minimum cross-layer trace should therefore preserve, for each request, the request identity, selected logical model, resolved endpoint pool, selected provider endpoint, retry or redispatch history, and final outcome classification.
+The minimum cross-layer trace should therefore preserve, for each request, the request identity, matched semantic decision, selected logical model, resolved endpoint pool, selected provider endpoint, retry or redispatch history, and final outcome classification.
 
 ### Relationship to Module Documents
 
 This overview intentionally stops at the boundary where module-level detail begins.
 
-`semantic_routing_module.md` specifies how the Semantic Routing Module extracts signals, evaluates policy, and resolves a logical model. `load_balancing_module.md` specifies how the Load Balancing Module resolves pools, evaluates endpoint state, and selects a serving provider endpoint. Those documents are free to evolve internally, but they must continue to honor the architectural contract defined in this overview.
+`semantic_routing_module.md` specifies how the Semantic Routing Module extracts configured signals, matches decisions, resolves `modelRefs`, and emits a logical-model handoff. `load_balancing_module.md` specifies how the Load Balancing Module resolves pools, evaluates endpoint state, and selects a serving provider endpoint. Those documents are free to evolve internally, but they must continue to honor the architectural contract defined in this overview.
 
 ## References
 

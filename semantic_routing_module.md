@@ -41,9 +41,9 @@ The module is designed to achieve the following outcomes:
 
 The module follows five governing principles.
 
-First, the Semantic Routing Module is logical-model-centric, not server-centric. Second, hard constraints and policy constraints must be applied before optimization. Third, routing should be composed from explicit signals and declarative policy, not hidden heuristics embedded in code paths. Fourth, every final decision must leave a recoverable reason trail. Fifth, governance-sensitive checks must happen before the request reaches an inference backend.
+First, the Semantic Routing Module is logical-model-centric, not server-centric. Second, hard constraints and policy constraints must be applied before optimization. Third, routing should be expressed as a signal-driven decision system with explicit signal extractors, declarative decision rules, model-selection algorithms, and per-decision plugins rather than hidden heuristics embedded in code paths. Fourth, every final decision must leave a recoverable reason trail. Fifth, governance-sensitive checks must happen before the request reaches an inference backend.
 
-ASE is aligned with the signal-driven design direction described in the vLLM Semantic Router work, especially its emphasis on heterogeneous signals, policy-aware decision logic, and post-decision plugin execution. ASE adopts that direction at the system level while preserving a strict handoff to the downstream Load Balancing Module. See [R3].
+ASE is aligned with the signal-driven design direction described in vLLM Semantic Router, especially its separation of `routing.signals`, `routing.decisions`, `modelRefs`, selection algorithms, and plugin execution. ASE adopts that semantic core while preserving a strict handoff to the downstream Load Balancing Module. See [R3], [R4], and [R5].
 
 ## Scope
 
@@ -81,17 +81,17 @@ Those responsibilities belong to `load_balancing_module.md` or to broader ASE in
 
 The Semantic Routing Module is the authoritative logical-model-selection module in ASE. It receives a normalized request plus tenant, policy, and session context; evaluates that request against the routable logical-model universe; and produces an explicit logical-model decision that the downstream Load Balancing Module must honor.
 
-The key property of the module is that it resolves a logical model, not an endpoint. Its value comes from making that decision explicit, policy-safe, and observable.
+The key property of the module is that it resolves a logical model, not an endpoint. In semantic-router terms, this module owns the signal-driven intelligence core: it extracts signals from the request, evaluates decision rules, selects among configured `modelRefs` using a model-selection algorithm, and runs per-decision plugins before handoff. Its value comes from making that decision explicit, policy-safe, and observable.
 
 ### Role in the Two-Stage Process
 
 ASE follows a `select -> route` process.
 
-- The Semantic Routing Module owns `signals -> decide -> select`.
+- The Semantic Routing Module owns `signals -> decisions -> model selection -> plugins`.
 - The selected artifact is a logical model or logical-model alias carried in the normalized `model` field.
-- The downstream Load Balancing Module owns endpoint routing for that already selected logical model.
+- The downstream Load Balancing Module owns backend and endpoint routing for that already selected logical model.
 
-This means the Semantic Routing Module is primarily a request-understanding and policy-matching module. In paper-aligned terms, it covers `signals -> decide -> select`. It decides what class of capability the request needs. It may run policy or selection plugins that shape the logical-model decision, but it does not decide which provider endpoint should execute that capability.
+This means the Semantic Routing Module is primarily a request-understanding and policy-matching module. In semantic-router-aligned terms, it covers the routing core rather than the full deployment envelope. Envoy or ExtProc-style ingress is a system-boundary choice, and provider `backend_refs` belong to the downstream Load Balancing Module. This document therefore aligns ASE with semantic-router's semantic core without collapsing load balancing back into this module.
 
 ### Module at a Glance
 
@@ -114,57 +114,9 @@ That contract is normative. The Semantic Routing Module may decide what logical 
 
 ### System Design Diagram
 
-The diagram below shows the internal flow of the Semantic Routing Module and the knowledge sources it depends on.
+The diagram below shows the module in the same shape as semantic-router's signal-driven core: normalized requests feed configured signal extractors, priority-ordered decisions match routes, `modelRefs` are resolved through a model-selection layer, and plugins execute before the explicit handoff.
 
-```mermaid
-flowchart LR
-    subgraph Inputs[Routing Inputs]
-        Content[Request Content]
-        Control[Control Metadata]
-        Identity[Identity and Governance Context]
-        Session[Session Context]
-    end
-
-    subgraph Knowledge[Routing Knowledge]
-        Registry[Logical Model Registry]
-        Policies[Policy and Governance Rules]
-        Objectives[Optimization Objectives]
-    end
-
-    subgraph Router[Semantic Routing Module]
-        Normalize[Request Normalizer]
-        Signals[Input Layer<br/>signal extraction]
-        Filter[Eligibility and Constraint Filter]
-        Decide[Decision Blocks]
-        Plugins[Selection and Policy Plugin Chain]
-        Output[Enriched Request<br/>selected logical model + handoff metadata]
-        Reject[Semantic Failure<br/>no eligible logical model or policy denial]
-    end
-
-    subgraph Explain[Explainability and Audit]
-        Trace[Routing Trace, Reason Codes, Audit Log]
-    end
-
-    Content --> Normalize
-    Control --> Normalize
-    Identity --> Normalize
-    Session --> Normalize
-
-    Normalize --> Signals --> Filter --> Decide --> Plugins --> Output
-    Registry --> Filter
-    Policies --> Filter
-    Policies --> Decide
-    Objectives --> Decide
-
-    Filter -->|no eligible logical model| Reject
-    Decide -->|policy denial| Reject
-
-    Normalize -. trace .-> Trace
-    Signals -. trace .-> Trace
-    Filter -. trace .-> Trace
-    Decide -. trace .-> Trace
-    Plugins -. trace .-> Trace
-```
+![Semantic Routing system design](diagrams/semantic-routing-system-design.svg)
 
 ### Architectural Invariants
 
@@ -180,17 +132,18 @@ These invariants define the acceptable behavior of the module even as implementa
 
 ### Internal Architecture
 
-The module is composed of five logical components.
+The semantic-router-aligned core is organized as four routing layers, preceded by request normalization and followed by an explicit handoff contract.
 
 | Component | Primary Responsibility | Architectural Output |
 | --- | --- | --- |
 | Request Normalizer | convert inbound API traffic into a canonical routing object | normalized request and routing context skeleton |
-| Signal Extraction Engine | compute semantic, capability, and policy-relevant features | structured routing signals |
-| Eligibility and Constraint Filter | eliminate impossible or disallowed logical models | eligible candidate set plus exclusion reasons |
-| Decision Engine | resolve the final logical model from the eligible set | authoritative logical-model decision plus rationale |
-| Policy Plugin Chain | execute decision-coupled controls after logical-model resolution | request annotations, safety tags, audit signals, optional augmentation hooks |
+| Signal Extraction Layer | execute configured detectors from `routing.signals` and assemble typed routing state | structured signal map for decision evaluation |
+| Decision Engine | evaluate priority-ordered `routing.decisions` rules over typed signals | matched decision plus candidate `modelRefs` |
+| Model Selection Layer | select the final logical model from the matched decision's `modelRefs` using the configured algorithm and model-card constraints | authoritative logical-model decision plus selection rationale |
+| Plugin Chain | execute decision-coupled plugins after model selection | request annotations, safety tags, cache behavior, trace signals, optional augmentation hooks |
+| Handoff Contract | emit the normalized `model` assignment and routing metadata | enriched request or explicit semantic rejection |
 
-The architecture is deliberately linear. Normalization produces a stable routing object, signal extraction enriches it, filtering constrains the candidate set, decision logic selects the logical model, and plugins attach any post-decision controls required before handoff.
+The architecture is deliberately linear. Normalization produces a stable routing object, signal extraction enriches it, the decision engine matches semantic routes, the model-selection layer resolves the logical model inside the matched route, plugins apply post-decision behavior, and the handoff contract makes the outcome explicit for the Load Balancing Module.
 
 ### Routing Context
 
@@ -205,38 +158,45 @@ The Semantic Routing Module consumes more than prompt text. It requires a struct
 
 Without this context, logical-model selection becomes guesswork. With it, routing becomes a controlled decision problem.
 
-### Logical Model Registry
+### Logical Model Registry and Model Cards
 
-The Semantic Routing Module depends on an authoritative logical model registry. This registry is not a convenience layer; it is the substrate against which capability constraints and policy rules are evaluated.
+The semantic-router reference design separates provider-facing model definitions from route-facing model cards. `providers.models` describes executable provider models and backend-facing identifiers, while `routing.modelCards` captures the route-visible capability envelope used during semantic decision making. In ASE, that split maps cleanly onto the module boundary: this document owns the model-card view, while provider and backend resolution belong to `load_balancing_module.md`.
 
-Each routable logical model entry should expose, at minimum:
+Each routable logical-model entry should expose, at minimum:
 
-- logical model ID and family
-- supported modalities
-- context-window limit
-- tool-calling and structured-output capabilities
-- quality, latency, and cost tier
-- deployment boundary and provider class
-- tenant allow and deny rules
-- safety or governance tags
+- logical model ID or model-card name
+- human-readable description and routing tags
+- supported capabilities and modalities
+- context-window size
+- quality, latency, and cost attributes or an equivalent quality score
+- reasoning and optional LoRA variants that may appear in `modelRefs`
+- governance, authz, and tenant constraints
 
-The registry should be declarative and versioned. Adding a new logical model should usually mean changing registry and policy configuration, not changing routing code.
+The registry should be declarative and versioned. Adding a new logical model should usually mean changing model cards and routing decisions, not changing routing code.
 
 ### Routing Signals
 
-Signals are the intermediate representation between raw request context and final logical-model selection. They should be explicit, inspectable, and typed closely enough that policy and optimization logic can consume them predictably.
+Signals are the intermediate representation between raw request context and final logical-model selection. In semantic-router, they are configured detectors under `routing.signals`, not ad hoc features embedded in code. They should remain explicit, inspectable, and typed closely enough that decision logic can consume them predictably.
 
-The signal set naturally falls into five groups.
+The signal taxonomy should align with the semantic-router configuration surface.
 
-| Signal Group | Purpose | Representative Signals |
-| --- | --- | --- |
-| Semantic Signals | describe what the request is about | domain classification, language detection, intent detection, coding indicators, extraction indicators |
-| Complexity Signals | estimate how demanding the request is | reasoning depth, ambiguity, expected chain length, long-context requirement |
-| Capability Signals | define what the model must support | modality need, context size, tool use, structured-output reliability, determinism preference |
-| Safety and Policy Signals | define whether a logical model is even eligible | privacy sensitivity, PII detection, jailbreak suspicion, provider restriction, region restriction |
-| Preference Signals | guide optimization among valid choices | cost preference, latency preference, quality preference, private deployment preference, continuity preference |
+| Signal Family | Routing Use |
+| --- | --- |
+| keyword | exact or approximate lexical triggers |
+| embedding | semantic nearest-neighbor or similarity-driven routing |
+| domain | coarse topic or workload classification |
+| fact_check | factual-verification requirement |
+| user_feedback | correction, clarification, or dissatisfaction follow-ups |
+| preference | style or optimization bias such as terse responses |
+| language | language-specific routing |
+| context | long-context or context-window requirements |
+| complexity | reasoning-depth escalation |
+| modality | text, image, or multimodal path selection |
+| authz or role binding | role-scoped or subject-scoped policy gating |
+| jailbreak | prompt-injection or abuse detection |
+| pii | sensitive-data detection and privacy gating |
 
-The module should compute only the signals needed for the current decision path. Cheap signals should remain cheap, and expensive signals should be invoked only when they materially affect the outcome.
+ASE should align with this taxonomy even if not every deployment enables every family. The module should still compute only the signals needed for the current decision path. Cheap signals should remain cheap, and expensive signals should be invoked only when they materially affect the outcome.
 
 ### Reasoning Budget and Cost Model
 
@@ -252,35 +212,35 @@ The module should therefore estimate, when useful:
 
 These signals exist to improve optimization, not to bypass hard constraints. More compute is not automatically better. A simple fact lookup should not be sent to a heavyweight reasoning logical model by default, but a later turn in the same session may still require escalation if the request becomes materially more complex.
 
-The module may optimize over model quality and inter-model cost, but it should not optimize over concrete provider endpoints. Equivalent endpoints for the same logical model belong to the downstream execution layer.
+In semantic-router terms, this is the input to the model-selection layer. A matched decision may use a simple static selector or a richer algorithm such as latency-aware, confidence-based, ratings-based, RouterDC, AutoMix, ReMoM, Elo, or hybrid selection. Regardless of algorithm choice, optimization must remain bounded by the matched decision and by hard policy constraints. The module may optimize over model quality and inter-model cost, but it should not optimize over concrete provider endpoints. Equivalent endpoints for the same logical model belong to the downstream execution layer.
 
 ### Decision Framework
 
-The routing decision should be understood as a staged reduction process, not a monolithic score.
+The routing decision should be understood as a signal-driven staged process aligned with semantic-router, not a monolithic score.
 
 #### Stage 1: Normalize and Build Routing Context
 
 The module first produces a canonical routing object from the raw request and attaches tenant, policy, and session metadata. This establishes the input contract for all later stages.
 
-#### Stage 2: Extract Routing Signals
+#### Stage 2: Execute Signal Extractors
 
-The module computes the signals needed to reason about semantics, capability requirements, and governance. This stage transforms request content into structured routing evidence.
+The module computes the configured signal set needed to reason about semantics, capability requirements, and governance. This stage transforms request content into structured routing evidence under `routing.signals`.
 
-#### Stage 3: Apply Hard Constraints
+#### Stage 3: Match Decisions
 
-Logical models that cannot possibly serve the request are removed first. Typical examples include insufficient context window, missing modality support, unavailable deployment boundary, or missing required feature support.
+The decision engine evaluates priority-ordered `routing.decisions` rules over the typed signal set. Each decision combines AND, OR, and NOT conditions and either matches or does not match. A matched decision defines the route shape that may be used for this request.
 
-#### Stage 4: Apply Policy Constraints
+#### Stage 4: Build Candidate ModelRefs
 
-From the technically eligible set, the module removes logical models that may not be used due to governance rules. Typical examples include private-data restrictions, tenant-specific provider restrictions, or regulated-traffic allowlists.
+From the matched decision, the module collects the candidate `modelRefs`, reasoning options, optional LoRA bindings, and hard capability constraints that define the legal selection space. This is where model-card capabilities, context limits, modality requirements, and policy constraints eliminate impossible candidates.
 
-#### Stage 5: Optimize Among Remaining Candidates
+#### Stage 5: Run the Model-Selection Algorithm
 
-Only after hard and policy constraints are satisfied does the module optimize among remaining candidates. Optimization may consider quality, latency, inter-model cost, continuity, or other approved objectives, but it may not re-admit ineligible logical models.
+The model-selection layer resolves the final logical model from the matched decision's candidate set. Simple routes may use static selection, while richer routes may use algorithms such as latency-aware, confidence, ratings, RouterDC, AutoMix, ReMoM, Elo, or hybrid strategies. No algorithm may escape the matched decision or re-admit a disallowed model.
 
-#### Stage 6: Execute Post-Decision Controls
+#### Stage 6: Execute Plugins and Emit the Handoff
 
-After the logical-model decision is made, the module executes decision-coupled plugins such as safety tagging, audit annotation, or optional semantic cache and augmentation hooks.
+After the logical-model decision is made, the module executes per-decision plugins such as safety tagging, audit annotation, semantic cache hooks, rewrite steps, tracing, or retrieval augmentation. It then emits the normalized `model` assignment and routing metadata required for downstream execution.
 
 This staged model is central to explainability. It allows the system to say not only which logical model was selected, but also why other logical models were excluded.
 
@@ -319,6 +279,7 @@ The contract should contain the following fields.
 | `model` | required | authoritative logical-model identifier consumed by the Load Balancing Module |
 | `request_id` | required | stable request identity across routing, dispatch, and observability |
 | `route_decision_status` | required | distinguish successful routing from semantic rejection paths |
+| `matched_decision` | optional | identify which semantic decision rule produced the candidate route |
 | `route_reason` | optional | preserve human- and operator-readable routing rationale |
 | `policy_tags` | optional | carry governance annotations that may matter to downstream handling and audit |
 | `debug_trace_id` | optional | correlate routing decisions with internal traces and debug artifacts |
@@ -334,6 +295,7 @@ An illustrative output shape is shown below.
 ```json
 {
   "model": "code-high-capacity",
+  "matched_decision": "computer_science_reasoning",
   "route_reason": "domain=code;complexity=high;policy=allowed",
   "policy_tags": ["tenant:default", "privacy:standard"],
   "messages": [
@@ -412,6 +374,7 @@ The Semantic Routing Module must classify failures precisely so they are not con
 
 | Failure Class | Meaning | Typical Cause |
 | --- | --- | --- |
+| No Matching Decision | no configured semantic route matched the request signal set | missing fallback route, insufficient signal confidence, unsupported workload shape |
 | No Eligible Model | no logical model satisfies hard capability or deployment constraints | insufficient context window, missing modality support, unavailable deployment zone |
 | Policy Denial | one or more logical models are technically capable, but all are forbidden by policy | tenant restriction, private-boundary rule, provider allowlist |
 | Invalid Routing Request | the request is malformed or missing required routing context | malformed payload, missing required metadata, unsupported request shape |
@@ -435,7 +398,7 @@ Core metrics should include:
 - session continuity preservation count
 - escalation count
 
-Useful audit fields include request ID, tenant ID, session ID, selected logical model, route reason, policy tags, and failure code where applicable.
+Useful audit fields include request ID, tenant ID, session ID, matched decision name, selected logical model, route reason, policy tags, algorithm type, and failure code where applicable.
 
 The minimum routing trace should preserve enough state to reconstruct the decision path from normalized request, to extracted signals, to filtered candidates, to final logical-model selection.
 
@@ -445,51 +408,85 @@ The module should be configured declaratively rather than through code changes. 
 
 The configuration surface should at least cover:
 
-- logical model registry
-- signal extractor bindings
-- policy rules
-- optimization objectives
+- provider-model catalog and defaults
+- routing model cards
+- routing signal definitions
+- routing decisions with `priority`, `rules`, `modelRefs`, `algorithm`, and `plugins`
 - northbound routing extension policy
 - session continuity policy
-- plugin-chain bindings
 - debug verbosity and trace controls
 
 An illustrative logical configuration is shown below.
 
 ```yaml
 semantic_routing:
-  default_mode: auto
-  objectives:
-    default: quality_within_budget
+  providers:
+    defaults:
+      default_model: general-small
+    models:
+      - name: general-small
+        provider_model_id: general-small
+      - name: code-large
+        provider_model_id: code-large
+  routing:
+    modelCards:
+      - name: general-small
+        description: Fast default text model.
+        capabilities: [chat, tools]
+        context_window_size: 32000
+        quality_score: 0.82
+        tags: [default, fast]
+      - name: code-large
+        description: Higher-quality reasoning model for software design.
+        capabilities: [chat, reasoning, long-context]
+        context_window_size: 128000
+        quality_score: 0.95
+        tags: [premium, analysis]
+    signals:
+      domains:
+        - name: "computer science"
+          description: Computer science and engineering prompts.
+      complexity:
+        - name: needs_reasoning
+          threshold: 0.75
+          description: Multi-step synthesis or design-heavy prompts.
+      context:
+        - name: long_context
+          min_tokens: 32K
+          max_tokens: 256K
+    decisions:
+      - name: computer_science_reasoning
+        priority: 170
+        rules:
+          operator: AND
+          conditions:
+            - type: domain
+              name: "computer science"
+            - type: complexity
+              name: needs_reasoning
+        modelRefs:
+          - model: general-small
+            use_reasoning: true
+            weight: 0.2
+          - model: code-large
+            use_reasoning: true
+            reasoning_effort: high
+            weight: 0.8
+        algorithm:
+          type: latency_aware
+        plugins:
+          - type: system_prompt
+            configuration:
+              enabled: true
+              mode: insert
+              system_prompt: You are a senior software architect.
   session_policy:
     preserve_previous_logical_model: true
     allow_escalation: true
     allow_downgrade: conservative
-  logical_models:
-    - id: general-small
-      family: general
-      cost_tier: low
-      latency_tier: low
-      context_window: 32000
-    - id: code-large
-      family: code
-      cost_tier: high
-      latency_tier: medium
-      context_window: 128000
-  policies:
-    - name: code_high_complexity
-      when:
-        domain: code
-        complexity: high
-      select: code-large
-    - name: long_context_private
-      when:
-        context_requirement: long
-        policy_tag: private_only
-      allowed_logical_models: [reasoning-private-long]
 ```
 
-The exact DSL is implementation-specific. The architectural requirement is that routing policy remain declarative, reviewable, and versioned.
+The exact DSL is implementation-specific. The architectural requirement is that routing policy remain declarative, reviewable, and versioned. In ASE, provider `backend_refs`, endpoint weights, and execution failover are intentionally omitted from this module configuration because they belong to the Load Balancing Module, not to semantic routing.
 
 ### Security and Governance Implications
 
@@ -517,3 +514,5 @@ The module must maintain a stable logical model registry, preserve a stable outp
 - [R1] `architecture.md`, ASE Semantic Routing and Load Balancing Architecture
 - [R2] `load_balancing_module.md`, ASE Load Balancing Module Design
 - [R3] vLLM Semantic Router: Signal Driven Decision Routing for Mixture-of-Modality Models, https://arxiv.org/abs/2603.04444
+- [R4] vLLM Semantic Router documentation, https://vllm-semantic-router.com/docs/intro/
+- [R5] `vllm-project/semantic-router` reference configuration, https://raw.githubusercontent.com/vllm-project/semantic-router/main/config/config.yaml
