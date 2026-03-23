@@ -153,7 +153,7 @@ This order is the core of the architecture and should not be inverted.
 
 ### Architecture diagram
 
-The diagram below is the only architecture view used in this document. It is intentionally laid out in the same order as the vLLM Semantic Router routing path: inputs, configured routing surfaces, semantic routing core, outputs, and audit trail.
+The diagram below is the normative architecture view for this module. It separates the northbound request path, the semantic-routing service, the configuration authorities that feed it, and the downstream contracts that it emits. That framing keeps the document aligned with the full vLLM Semantic Router deployment envelope while still making the ASE module boundary explicit.
 
 ![Semantic Routing system design](diagrams/semantic-routing-system-design.svg)
 
@@ -161,24 +161,27 @@ The diagram below is the only architecture view used in this document. It is int
 
 Read the diagram from left to right.
 
-1. `Traffic Shell` is the full upstream system baseline:
-   - client requests enter through an OpenAI-compatible API boundary
+1. `Northbound Request Path` is the full upstream ingress shell:
+   - client traffic enters through an OpenAI-compatible API boundary
    - Envoy or an equivalent AI gateway owns listeners, HTTP filters, timeout policy, and ExtProc invocation
-2. `Semantic Routing Module` is the document scope:
-   - `Canonical Routing Surface` is the semantic-routing-owned DSL under `routing.modelCards`, `routing.signals`, and `routing.decisions`
-   - `Provider / Deployment Inputs` are required system dependencies under `providers`, but they are not semantically owned by this module
-   - `Runtime / Shared Services` under `global` provide shared services such as observability, semantic cache, tools, and model-backed modules
-3. The numbered pipeline inside the central box is the semantic execution order:
-   - `1 Request Normalization`
-   - `2 Signal Extraction`
-   - `3 Decision Engine`
-   - `4 Model Selection + Plugin Chain`
-4. `Outputs and Integration` distinguishes semantic outputs from deployment-specific projections:
+2. `Semantic Routing Service` is the document scope:
+   - `routing` is the semantic DSL owned by this module and contains `modelCards`, `signals`, and `decisions`
+   - `providers` is a required deployment catalog dependency, but it is not semantically owned by this module
+   - `global` provides shared runtime services such as observability, semantic cache, tools, and model-backed modules
+3. `Runtime Execution Order` is the authoritative semantic path:
+   - `1 Normalize Request`
+   - `2 Extract Signals`
+   - `3 Evaluate Decisions`
+   - `4 Select Logical Model`
+   - `5 Plugins + Handoff`
+4. `Ownership Boundary` states what the module does and does not own:
+   - it owns semantic policy, logical-model resolution, and route-scoped plugin behavior
+   - it does not own endpoint health, queue depth, retry state, or redispatch mechanics
+5. `Downstream Contracts` separate normative outputs from deployment realizations:
    - the normative semantic output is the resolved logical model plus routing metadata
-   - upstream-compatible deployments may also project endpoint hints or routing headers
+   - upstream-compatible deployments may also project route headers or destination hints
    - semantic rejection remains an explicit module-owned outcome
-5. The bottom rule states the architectural invariant:
-   logical-model selection is the semantic source of truth, even when integrated deployments also emit downstream routing hints.
+   - split mode and integrated mode are both realizations of the same semantic decision
 
 ### Architectural position and boundary
 
