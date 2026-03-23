@@ -1,6 +1,6 @@
-<svg width="1440" height="960" viewBox="0 0 1440 960" fill="none" xmlns="http://www.w3.org/2000/svg">
+<svg width="1600" height="980" viewBox="0 0 1600 980" fill="none" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1440" y2="960" gradientUnits="userSpaceOnUse">
+    <linearGradient id="bg" x1="0" y1="0" x2="1600" y2="980" gradientUnits="userSpaceOnUse">
       <stop stop-color="#F8FAFC"/>
       <stop offset="1" stop-color="#EEF4FF"/>
     </linearGradient>
@@ -16,268 +16,282 @@
     <marker id="arrowGreen" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">
       <path d="M0,0 L10,5 L0,10 Z" fill="#16A34A"/>
     </marker>
-    <marker id="arrowAmber" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">
-      <path d="M0,0 L10,5 L0,10 Z" fill="#D97706"/>
-    </marker>
   </defs>
 
-  <rect width="1440" height="960" rx="28" fill="url(#bg)"/>
+  <rect width="1600" height="980" rx="28" fill="url(#bg)"/>
 
-  <text x="48" y="62" fill="#0F172A" font-family="Segoe UI, Arial, sans-serif" font-size="30" font-weight="700">
-    Semantic Routing Module System Design
+  <text x="48" y="60" fill="#0F172A" font-family="Segoe UI, Arial, sans-serif" font-size="30" font-weight="700">
+    Semantic Routing Module Design Basis
   </text>
-  <text x="48" y="94" fill="#475569" font-family="Segoe UI, Arial, sans-serif" font-size="16">
-    Aligned to semantic-router's signal-driven core: requests flow through signals, decisions, model selection, plugins, and a stable handoff contract.
+  <text x="48" y="92" fill="#475569" font-family="Segoe UI, Arial, sans-serif" font-size="16">
+    Full upstream baseline: Envoy / AI Gateway traffic shell plus Go ExtProc intelligence layer.
   </text>
-
-  <rect x="48" y="120" width="198" height="28" rx="14" fill="#F8FAFC" stroke="#CBD5E1"/>
-  <text x="147" y="139" fill="#334155" font-family="Segoe UI, Arial, sans-serif" font-size="12" font-weight="700" text-anchor="middle">
-    ROUTING INPUTS
+  <text x="48" y="112" fill="#475569" font-family="Segoe UI, Arial, sans-serif" font-size="16">
+    This document specifies the semantic decision path inside that envelope.
   </text>
 
-  <rect x="340" y="120" width="258" height="28" rx="14" fill="#E0E7FF" stroke="#C7D2FE"/>
-  <text x="469" y="139" fill="#4338CA" font-family="Segoe UI, Arial, sans-serif" font-size="12" font-weight="700" text-anchor="middle">
-    CONFIGURED ROUTING SURFACES
+  <rect x="40" y="118" width="1520" height="822" rx="28" fill="none" stroke="#CBD5E1" stroke-width="2" stroke-dasharray="8 8"/>
+  <text x="62" y="146" fill="#334155" font-family="Segoe UI, Arial, sans-serif" font-size="12" font-weight="700">
+    FULL UPSTREAM ENVELOPE / SYSTEM BASELINE
   </text>
 
-  <rect x="340" y="320" width="242" height="28" rx="14" fill="#DBEAFE" stroke="#93C5FD"/>
-  <text x="461" y="339" fill="#1D4ED8" font-family="Segoe UI, Arial, sans-serif" font-size="12" font-weight="700" text-anchor="middle">
-    SEMANTIC ROUTING CORE
+  <rect x="48" y="176" width="320" height="688" rx="24" fill="#FFFFFF" stroke="#E2E8F0" filter="url(#shadow)"/>
+  <text x="72" y="214" fill="#0F172A" font-family="Segoe UI, Arial, sans-serif" font-size="22" font-weight="700">
+    Traffic Shell
+  </text>
+  <text x="72" y="242" fill="#64748B" font-family="Segoe UI, Arial, sans-serif" font-size="13">
+    Upstream system envelope owned by
+  </text>
+  <text x="72" y="262" fill="#64748B" font-family="Segoe UI, Arial, sans-serif" font-size="13">
+    the gateway and deployment layer.
   </text>
 
-  <rect x="1136" y="320" width="248" height="28" rx="14" fill="#ECFCCB" stroke="#BEF264"/>
-  <text x="1260" y="339" fill="#3F6212" font-family="Segoe UI, Arial, sans-serif" font-size="12" font-weight="700" text-anchor="middle">
-    OUTPUTS AND OUTCOMES
+  <rect x="72" y="300" width="272" height="110" rx="18" fill="#F8FAFC" stroke="#CBD5E1"/>
+  <text x="96" y="332" fill="#0F172A" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="700">
+    Client / OpenAI-Compatible
+  </text>
+  <text x="96" y="352" fill="#0F172A" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="700">
+    API
+  </text>
+  <text x="96" y="378" fill="#475569" font-family="Segoe UI, Arial, sans-serif" font-size="13">
+    request body, headers, identity,
+  </text>
+  <text x="96" y="398" fill="#475569" font-family="Segoe UI, Arial, sans-serif" font-size="13">
+    session metadata, and policy context
   </text>
 
-  <rect x="340" y="808" width="250" height="28" rx="14" fill="#F1F5F9" stroke="#CBD5E1"/>
-  <text x="465" y="827" fill="#334155" font-family="Segoe UI, Arial, sans-serif" font-size="12" font-weight="700" text-anchor="middle">
-    EXPLAINABILITY AND AUDIT
+  <rect x="72" y="454" width="272" height="170" rx="18" fill="#F8FAFC" stroke="#CBD5E1"/>
+  <text x="96" y="488" fill="#0F172A" font-family="Segoe UI, Arial, sans-serif" font-size="17" font-weight="700">
+    Envoy / AI Gateway
+  </text>
+  <text x="96" y="514" fill="#475569" font-family="Segoe UI, Arial, sans-serif" font-size="13">
+    listener, HTTP filter chain,
+  </text>
+  <text x="96" y="534" fill="#475569" font-family="Segoe UI, Arial, sans-serif" font-size="13">
+    ExtProc invocation, timeout policy,
+  </text>
+  <text x="96" y="554" fill="#475569" font-family="Segoe UI, Arial, sans-serif" font-size="13">
+    header projection, and traffic control
+  </text>
+  <rect x="84" y="578" width="248" height="28" rx="14" fill="#DBEAFE" stroke="#93C5FD"/>
+  <text x="208" y="596" fill="#1D4ED8" font-family="Segoe UI, Arial, sans-serif" font-size="10" font-weight="700" text-anchor="middle">
+    EXT_PROC CALL INTO ROUTER
   </text>
 
-  <rect x="40" y="164" width="260" height="560" rx="24" fill="#FFFFFF" stroke="#E2E8F0" filter="url(#shadow)"/>
-  <text x="64" y="206" fill="#0F172A" font-family="Segoe UI, Arial, sans-serif" font-size="22" font-weight="700">
-    Routing Inputs
+  <rect x="400" y="176" width="812" height="688" rx="24" fill="#FFFFFF" stroke="#BFDBFE" filter="url(#shadow)"/>
+  <text x="424" y="214" fill="#1D4ED8" font-family="Segoe UI, Arial, sans-serif" font-size="22" font-weight="700">
+    Semantic Routing Module
   </text>
-  <text x="64" y="234" fill="#64748B" font-family="Segoe UI, Arial, sans-serif" font-size="13">
-    Inputs that are normalized into the
+  <text x="424" y="242" fill="#3B82F6" font-family="Segoe UI, Arial, sans-serif" font-size="13">
+    Preferred basis: upstream Go ExtProc service, canonical config, and routing fragment catalog.
   </text>
-  <text x="64" y="254" fill="#64748B" font-family="Segoe UI, Arial, sans-serif" font-size="13">
-    canonical routing context.
-  </text>
-
-  <rect x="60" y="280" width="220" height="86" rx="18" fill="#F8FAFC" stroke="#CBD5E1"/>
-  <circle cx="84" cy="310" r="8" fill="#2563EB"/>
-  <text x="102" y="313" fill="#0F172A" font-family="Segoe UI, Arial, sans-serif" font-size="15" font-weight="700">
-    Request Content
-  </text>
-  <text x="84" y="337" fill="#475569" font-family="Segoe UI, Arial, sans-serif" font-size="13">
-    messages, prompt text,
-  </text>
-  <text x="84" y="357" fill="#475569" font-family="Segoe UI, Arial, sans-serif" font-size="13">
-    multimodal payload, output shape
+  <rect x="962" y="194" width="226" height="28" rx="14" fill="#EFF6FF" stroke="#93C5FD"/>
+  <text x="1075" y="212" fill="#1D4ED8" font-family="Segoe UI, Arial, sans-serif" font-size="11" font-weight="700" text-anchor="middle">
+    DOCUMENT SCOPE
   </text>
 
-  <rect x="60" y="384" width="220" height="86" rx="18" fill="#F8FAFC" stroke="#CBD5E1"/>
-  <circle cx="84" cy="414" r="8" fill="#0EA5E9"/>
-  <text x="102" y="417" fill="#0F172A" font-family="Segoe UI, Arial, sans-serif" font-size="15" font-weight="700">
-    Control Metadata
+  <rect x="424" y="278" width="232" height="120" rx="18" fill="#EEF2FF" stroke="#C7D2FE"/>
+  <text x="446" y="308" fill="#312E81" font-family="Segoe UI, Arial, sans-serif" font-size="15" font-weight="700">
+    Canonical Routing
   </text>
-  <text x="84" y="441" fill="#475569" font-family="Segoe UI, Arial, sans-serif" font-size="13">
-    model=auto, hints, overrides,
+  <text x="446" y="328" fill="#312E81" font-family="Segoe UI, Arial, sans-serif" font-size="15" font-weight="700">
+    Surface
   </text>
-  <text x="84" y="461" fill="#475569" font-family="Segoe UI, Arial, sans-serif" font-size="13">
-    caller preferences, debug flags
+  <text x="446" y="350" fill="#475569" font-family="Segoe UI, Arial, sans-serif" font-size="13">
+    routing.modelCards
   </text>
-
-  <rect x="60" y="488" width="220" height="98" rx="18" fill="#F8FAFC" stroke="#CBD5E1"/>
-  <circle cx="84" cy="518" r="8" fill="#4338CA"/>
-  <text x="102" y="521" fill="#0F172A" font-family="Segoe UI, Arial, sans-serif" font-size="15" font-weight="700">
-    Identity and Governance
+  <text x="446" y="370" fill="#475569" font-family="Segoe UI, Arial, sans-serif" font-size="13">
+    routing.signals
   </text>
-  <text x="84" y="545" fill="#475569" font-family="Segoe UI, Arial, sans-serif" font-size="13">
-    tenant, auth scope, privacy class,
-  </text>
-  <text x="84" y="565" fill="#475569" font-family="Segoe UI, Arial, sans-serif" font-size="13">
-    region, compliance and policy tags
+  <text x="446" y="390" fill="#475569" font-family="Segoe UI, Arial, sans-serif" font-size="13">
+    routing.decisions
   </text>
 
-  <rect x="60" y="604" width="220" height="86" rx="18" fill="#F8FAFC" stroke="#CBD5E1"/>
-  <circle cx="84" cy="634" r="8" fill="#7C3AED"/>
-  <text x="102" y="637" fill="#0F172A" font-family="Segoe UI, Arial, sans-serif" font-size="15" font-weight="700">
-    Session Context
+  <rect x="690" y="278" width="232" height="120" rx="18" fill="#F8FAFC" stroke="#CBD5E1"/>
+  <text x="712" y="308" fill="#0F172A" font-family="Segoe UI, Arial, sans-serif" font-size="15" font-weight="700">
+    Provider / Deployment
   </text>
-  <text x="84" y="661" fill="#475569" font-family="Segoe UI, Arial, sans-serif" font-size="13">
-    previous logical model,
+  <text x="712" y="328" fill="#0F172A" font-family="Segoe UI, Arial, sans-serif" font-size="15" font-weight="700">
+    Inputs
   </text>
-  <text x="84" y="681" fill="#475569" font-family="Segoe UI, Arial, sans-serif" font-size="13">
-    continuity and escalation state
+  <text x="712" y="350" fill="#475569" font-family="Segoe UI, Arial, sans-serif" font-size="13">
+    providers.defaults
   </text>
-
-  <rect x="340" y="164" width="760" height="124" rx="24" fill="#FFFFFF" stroke="#C7D2FE" filter="url(#shadow)"/>
-  <text x="364" y="206" fill="#312E81" font-family="Segoe UI, Arial, sans-serif" font-size="22" font-weight="700">
-    Configured Routing Surfaces
+  <text x="712" y="370" fill="#475569" font-family="Segoe UI, Arial, sans-serif" font-size="13">
+    providers.models
   </text>
-  <text x="364" y="234" fill="#6366F1" font-family="Segoe UI, Arial, sans-serif" font-size="13">
-    ASE aligns to semantic-router's signal extraction, decision engine, model selection, and plugin chain while keeping endpoint routing downstream.
+  <text x="712" y="390" fill="#475569" font-family="Segoe UI, Arial, sans-serif" font-size="13">
+    backend_refs and pricing
   </text>
 
-  <rect x="364" y="246" width="220" height="24" rx="12" fill="#EEF2FF" stroke="#C7D2FE"/>
-  <text x="474" y="262" fill="#4338CA" font-family="Segoe UI, Arial, sans-serif" font-size="11" font-weight="700" text-anchor="middle">
-    MODEL METADATA
+  <rect x="956" y="278" width="232" height="120" rx="18" fill="#F8FAFC" stroke="#CBD5E1"/>
+  <text x="978" y="308" fill="#0F172A" font-family="Segoe UI, Arial, sans-serif" font-size="15" font-weight="700">
+    Runtime / Shared
   </text>
-  <rect x="610" y="246" width="220" height="24" rx="12" fill="#EEF2FF" stroke="#C7D2FE"/>
-  <text x="720" y="262" fill="#4338CA" font-family="Segoe UI, Arial, sans-serif" font-size="11" font-weight="700" text-anchor="middle">
-    SIGNAL DEFINITIONS
+  <text x="978" y="328" fill="#0F172A" font-family="Segoe UI, Arial, sans-serif" font-size="15" font-weight="700">
+    Services
   </text>
-  <rect x="856" y="246" width="220" height="24" rx="12" fill="#EEF2FF" stroke="#C7D2FE"/>
-  <text x="966" y="262" fill="#4338CA" font-family="Segoe UI, Arial, sans-serif" font-size="11" font-weight="700" text-anchor="middle">
-    ROUTING DECISIONS
+  <text x="978" y="350" fill="#475569" font-family="Segoe UI, Arial, sans-serif" font-size="13">
+    global.router / services / stores
   </text>
-
-  <rect x="340" y="364" width="760" height="420" rx="24" fill="#FFFFFF" stroke="#BFDBFE" filter="url(#shadow)"/>
-  <text x="364" y="406" fill="#1D4ED8" font-family="Segoe UI, Arial, sans-serif" font-size="22" font-weight="700">
-    Semantic Routing Core
+  <text x="978" y="370" fill="#475569" font-family="Segoe UI, Arial, sans-serif" font-size="13">
+    semantic cache, observability,
   </text>
-  <text x="364" y="434" fill="#3B82F6" font-family="Segoe UI, Arial, sans-serif" font-size="13">
-    The module normalizes the request, extracts typed signals, matches a semantic route, selects from `modelRefs`, and then runs per-decision plugins.
+  <text x="978" y="390" fill="#475569" font-family="Segoe UI, Arial, sans-serif" font-size="13">
+    tools, prompt_guard, classifier
   </text>
 
-  <rect x="520" y="460" width="400" height="58" rx="18" fill="#EFF6FF" stroke="#93C5FD"/>
-  <circle cx="548" cy="489" r="14" fill="#2563EB"/>
-  <text x="548" y="494" fill="#FFFFFF" font-family="Segoe UI, Arial, sans-serif" font-size="12" font-weight="700" text-anchor="middle">
+  <rect x="528" y="446" width="556" height="84" rx="18" fill="#EFF6FF" stroke="#93C5FD"/>
+  <circle cx="560" cy="488" r="15" fill="#2563EB"/>
+  <text x="560" y="493" fill="#FFFFFF" font-family="Segoe UI, Arial, sans-serif" font-size="12" font-weight="700" text-anchor="middle">
     1
   </text>
-  <text x="576" y="484" fill="#1D4ED8" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="700">
-    Request Normalizer
+  <text x="588" y="478" fill="#1D4ED8" font-family="Segoe UI, Arial, sans-serif" font-size="17" font-weight="700">
+    Request Normalization
   </text>
-  <text x="576" y="506" fill="#475569" font-family="Segoe UI, Arial, sans-serif" font-size="13">
-    canonical request, authz, session, and preference state
+  <text x="588" y="500" fill="#475569" font-family="Segoe UI, Arial, sans-serif" font-size="12.5">
+    Canonical request object, identity, session state,
+  </text>
+  <text x="588" y="518" fill="#475569" font-family="Segoe UI, Arial, sans-serif" font-size="12.5">
+    policy context, and preference hints
   </text>
 
-  <rect x="520" y="534" width="400" height="58" rx="18" fill="#EFF6FF" stroke="#93C5FD"/>
-  <circle cx="548" cy="563" r="14" fill="#2563EB"/>
-  <text x="548" y="568" fill="#FFFFFF" font-family="Segoe UI, Arial, sans-serif" font-size="12" font-weight="700" text-anchor="middle">
+  <rect x="528" y="548" width="556" height="84" rx="18" fill="#EFF6FF" stroke="#93C5FD"/>
+  <circle cx="560" cy="590" r="15" fill="#2563EB"/>
+  <text x="560" y="595" fill="#FFFFFF" font-family="Segoe UI, Arial, sans-serif" font-size="12" font-weight="700" text-anchor="middle">
     2
   </text>
-  <text x="576" y="558" fill="#1D4ED8" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="700">
-    Signal Extraction Layer
+  <text x="588" y="580" fill="#1D4ED8" font-family="Segoe UI, Arial, sans-serif" font-size="17" font-weight="700">
+    Signal Extraction
   </text>
-  <text x="576" y="580" fill="#475569" font-family="Segoe UI, Arial, sans-serif" font-size="13">
-    keyword, embedding, domain, modality, jailbreak, pii, and other typed signals
+  <text x="588" y="602" fill="#475569" font-family="Segoe UI, Arial, sans-serif" font-size="12.5">
+    Typed evidence from keyword, embedding, domain,
+  </text>
+  <text x="588" y="620" fill="#475569" font-family="Segoe UI, Arial, sans-serif" font-size="12.5">
+    PII, jailbreak, preference, and context signals
   </text>
 
-  <rect x="520" y="608" width="400" height="58" rx="18" fill="#EFF6FF" stroke="#93C5FD"/>
-  <circle cx="548" cy="637" r="14" fill="#2563EB"/>
-  <text x="548" y="642" fill="#FFFFFF" font-family="Segoe UI, Arial, sans-serif" font-size="12" font-weight="700" text-anchor="middle">
+  <rect x="528" y="650" width="556" height="84" rx="18" fill="#EFF6FF" stroke="#93C5FD"/>
+  <circle cx="560" cy="692" r="15" fill="#2563EB"/>
+  <text x="560" y="697" fill="#FFFFFF" font-family="Segoe UI, Arial, sans-serif" font-size="12" font-weight="700" text-anchor="middle">
     3
   </text>
-  <text x="576" y="632" fill="#1D4ED8" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="700">
+  <text x="588" y="682" fill="#1D4ED8" font-family="Segoe UI, Arial, sans-serif" font-size="17" font-weight="700">
     Decision Engine
   </text>
-  <text x="576" y="654" fill="#475569" font-family="Segoe UI, Arial, sans-serif" font-size="13">
-    priority-ordered rules with AND / OR / NOT over typed signals
+  <text x="588" y="704" fill="#475569" font-family="Segoe UI, Arial, sans-serif" font-size="12.5">
+    Priority-ordered rules over typed signals choose
+  </text>
+  <text x="588" y="722" fill="#475569" font-family="Segoe UI, Arial, sans-serif" font-size="12.5">
+    the matched route and its legal candidate set
   </text>
 
-  <rect x="520" y="682" width="400" height="58" rx="18" fill="#EFF6FF" stroke="#93C5FD"/>
-  <circle cx="548" cy="711" r="14" fill="#2563EB"/>
-  <text x="548" y="716" fill="#FFFFFF" font-family="Segoe UI, Arial, sans-serif" font-size="12" font-weight="700" text-anchor="middle">
+  <rect x="528" y="752" width="556" height="84" rx="18" fill="#EFF6FF" stroke="#93C5FD"/>
+  <circle cx="560" cy="794" r="15" fill="#2563EB"/>
+  <text x="560" y="799" fill="#FFFFFF" font-family="Segoe UI, Arial, sans-serif" font-size="12" font-weight="700" text-anchor="middle">
     4
   </text>
-  <text x="576" y="706" fill="#1D4ED8" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="700">
-    Model Selection Layer
+  <text x="588" y="776" fill="#1D4ED8" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="700">
+    Model Selection + 
   </text>
-  <text x="576" y="728" fill="#475569" font-family="Segoe UI, Arial, sans-serif" font-size="13">
-    select from `modelRefs`, reasoning mode, LoRA, and algorithm constraints
-  </text>
-
-  <rect x="520" y="756" width="400" height="58" rx="18" fill="#EFF6FF" stroke="#93C5FD"/>
-  <circle cx="548" cy="785" r="14" fill="#2563EB"/>
-  <text x="548" y="790" fill="#FFFFFF" font-family="Segoe UI, Arial, sans-serif" font-size="12" font-weight="700" text-anchor="middle">
-    5
-  </text>
-  <text x="576" y="780" fill="#1D4ED8" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="700">
+  <text x="588" y="796" fill="#1D4ED8" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="700">
     Plugin Chain
   </text>
-  <text x="576" y="802" fill="#475569" font-family="Segoe UI, Arial, sans-serif" font-size="13">
-    cache, safety, rewrite, tracing, RAG, and other per-decision hooks
+  <text x="588" y="814" fill="#475569" font-family="Segoe UI, Arial, sans-serif" font-size="12.5">
+    Select the logical model from modelRefs.
+  </text>
+  <text x="588" y="832" fill="#475569" font-family="Segoe UI, Arial, sans-serif" font-size="12.5">
+    Then apply route plugins, cache hooks, and annotations.
   </text>
 
-  <line x1="720" y1="518" x2="720" y2="534" stroke="#2563EB" stroke-width="2.5" stroke-linecap="round" marker-end="url(#arrowBlue)"/>
-  <line x1="720" y1="592" x2="720" y2="608" stroke="#2563EB" stroke-width="2.5" stroke-linecap="round" marker-end="url(#arrowBlue)"/>
-  <line x1="720" y1="666" x2="720" y2="682" stroke="#2563EB" stroke-width="2.5" stroke-linecap="round" marker-end="url(#arrowBlue)"/>
-  <line x1="720" y1="740" x2="720" y2="756" stroke="#2563EB" stroke-width="2.5" stroke-linecap="round" marker-end="url(#arrowBlue)"/>
+  <line x1="806" y1="398" x2="806" y2="446" stroke="#2563EB" stroke-width="2.5" marker-end="url(#arrowBlue)"/>
+  <line x1="806" y1="530" x2="806" y2="548" stroke="#2563EB" stroke-width="2.5" marker-end="url(#arrowBlue)"/>
+  <line x1="806" y1="632" x2="806" y2="650" stroke="#2563EB" stroke-width="2.5" marker-end="url(#arrowBlue)"/>
+  <line x1="806" y1="734" x2="806" y2="752" stroke="#2563EB" stroke-width="2.5" marker-end="url(#arrowBlue)"/>
 
-  <rect x="1140" y="364" width="260" height="420" rx="24" fill="#FFFFFF" stroke="#D9F99D" filter="url(#shadow)"/>
-  <text x="1164" y="406" fill="#365314" font-family="Segoe UI, Arial, sans-serif" font-size="22" font-weight="700">
-    Outputs and Outcomes
+  <rect x="1244" y="176" width="308" height="688" rx="24" fill="#FFFFFF" stroke="#D9F99D" filter="url(#shadow)"/>
+  <text x="1268" y="214" fill="#365314" font-family="Segoe UI, Arial, sans-serif" font-size="22" font-weight="700">
+    Outputs and Integration
   </text>
-  <text x="1164" y="434" fill="#65A30D" font-family="Segoe UI, Arial, sans-serif" font-size="13">
-    Success and rejection remain explicit, bounded module results.
+  <text x="1268" y="242" fill="#65A30D" font-family="Segoe UI, Arial, sans-serif" font-size="13">
+    The router may operate in integrated or split mode
+  </text>
+  <text x="1268" y="260" fill="#65A30D" font-family="Segoe UI, Arial, sans-serif" font-size="13">
+    without changing the semantic pipeline.
   </text>
 
-  <rect x="1160" y="478" width="220" height="126" rx="18" fill="#F0FDF4" stroke="#86EFAC"/>
-  <text x="1184" y="510" fill="#166534" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="700">
-    Enriched Request
+  <rect x="1268" y="300" width="260" height="126" rx="18" fill="#F0FDF4" stroke="#86EFAC"/>
+  <text x="1292" y="334" fill="#166534" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="700">
+    Normative Semantic Output
   </text>
-  <text x="1184" y="536" fill="#475569" font-family="Segoe UI, Arial, sans-serif" font-size="13">
+  <text x="1292" y="360" fill="#475569" font-family="Segoe UI, Arial, sans-serif" font-size="13">
     model=&lt;logical-model&gt;
   </text>
-  <text x="1184" y="556" fill="#475569" font-family="Segoe UI, Arial, sans-serif" font-size="13">
+  <text x="1292" y="380" fill="#475569" font-family="Segoe UI, Arial, sans-serif" font-size="13">
     matched decision, route reason,
   </text>
-  <text x="1184" y="576" fill="#475569" font-family="Segoe UI, Arial, sans-serif" font-size="13">
-    plugin outputs, trace ids, handoff
-  </text>
-  <text x="1184" y="596" fill="#166534" font-family="Segoe UI, Arial, sans-serif" font-size="12" font-weight="700">
-    load balancing consumes this contract
+  <text x="1292" y="400" fill="#475569" font-family="Segoe UI, Arial, sans-serif" font-size="13">
+    policy tags, trace ids, plugin outputs
   </text>
 
-  <rect x="1160" y="636" width="220" height="116" rx="18" fill="#FFF7ED" stroke="#FDBA74"/>
-  <text x="1184" y="668" fill="#B45309" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="700">
+  <rect x="1268" y="456" width="260" height="120" rx="18" fill="#EFF6FF" stroke="#93C5FD"/>
+  <text x="1292" y="486" fill="#1D4ED8" font-family="Segoe UI, Arial, sans-serif" font-size="14.5" font-weight="700">
+    Optional Upstream-Compatible
+  </text>
+  <text x="1292" y="506" fill="#1D4ED8" font-family="Segoe UI, Arial, sans-serif" font-size="14.5" font-weight="700">
+    Projection
+  </text>
+  <text x="1292" y="532" fill="#475569" font-family="Segoe UI, Arial, sans-serif" font-size="13">
+    route headers or endpoint hints
+  </text>
+  <text x="1292" y="552" fill="#475569" font-family="Segoe UI, Arial, sans-serif" font-size="13">
+    for Envoy integration
+  </text>
+  <text x="1292" y="572" fill="#475569" font-family="Segoe UI, Arial, sans-serif" font-size="13">
+    in upstream-compatible mode
+  </text>
+
+  <rect x="1268" y="606" width="260" height="120" rx="18" fill="#FFF7ED" stroke="#FDBA74"/>
+  <text x="1292" y="640" fill="#B45309" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="700">
     Semantic Failure
   </text>
-  <text x="1184" y="694" fill="#475569" font-family="Segoe UI, Arial, sans-serif" font-size="13">
-    no matching decision
+  <text x="1292" y="666" fill="#475569" font-family="Segoe UI, Arial, sans-serif" font-size="13">
+    no matching decision, no eligible model,
   </text>
-  <text x="1184" y="714" fill="#475569" font-family="Segoe UI, Arial, sans-serif" font-size="13">
-    no eligible modelRefs
-  </text>
-  <text x="1184" y="734" fill="#475569" font-family="Segoe UI, Arial, sans-serif" font-size="13">
-    policy or authz denial
+  <text x="1292" y="686" fill="#475569" font-family="Segoe UI, Arial, sans-serif" font-size="13">
+    policy denial, or validation failure
   </text>
 
-  <rect x="340" y="852" width="1060" height="72" rx="20" fill="#FFFFFF" stroke="#CBD5E1" filter="url(#shadow)"/>
-  <text x="368" y="888" fill="#0F172A" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="700">
-    Routing Trace, Reason Codes, and Audit Record
+  <rect x="1268" y="748" width="260" height="104" rx="18" fill="#F8FAFC" stroke="#CBD5E1"/>
+  <text x="1292" y="782" fill="#0F172A" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="700">
+    Downstream Execution Modes
   </text>
-  <text x="368" y="914" fill="#64748B" font-family="Segoe UI, Arial, sans-serif" font-size="13">
-    Every stage emits structured evidence: signal values, matched decision, candidate modelRefs, algorithm choice, final route reason, and rejection status when applicable.
+  <text x="1292" y="808" fill="#475569" font-family="Segoe UI, Arial, sans-serif" font-size="13">
+    ASE split mode: downstream
+  </text>
+  <text x="1292" y="826" fill="#475569" font-family="Segoe UI, Arial, sans-serif" font-size="13">
+    Load Balancing Module
+  </text>
+  <text x="1292" y="844" fill="#475569" font-family="Segoe UI, Arial, sans-serif" font-size="13">
+    Integrated mode: direct Envoy path
   </text>
 
-  <line x1="280" y1="323" x2="520" y2="489" stroke="#64748B" stroke-width="2" stroke-linecap="round" marker-end="url(#arrow)"/>
-  <line x1="280" y1="427" x2="520" y2="489" stroke="#64748B" stroke-width="2" stroke-linecap="round" marker-end="url(#arrow)"/>
-  <line x1="280" y1="537" x2="520" y2="489" stroke="#64748B" stroke-width="2" stroke-linecap="round" marker-end="url(#arrow)"/>
-  <line x1="280" y1="647" x2="520" y2="489" stroke="#64748B" stroke-width="2" stroke-linecap="round" marker-end="url(#arrow)"/>
+  <rect x="400" y="872" width="1152" height="64" rx="14" fill="#FFFFFF" stroke="#CBD5E1"/>
+  <text x="430" y="894" fill="#64748B" font-family="Segoe UI, Arial, sans-serif" font-size="12">
+    Architectural rule: semantic model choice is the source of truth.
+  </text>
+  <text x="430" y="912" fill="#64748B" font-family="Segoe UI, Arial, sans-serif" font-size="12">
+    If integrated deployments also project endpoint hints, they remain
+  </text>
+  <text x="430" y="930" fill="#64748B" font-family="Segoe UI, Arial, sans-serif" font-size="12">
+    downstream integration artifacts rather than semantic-policy ownership.
+  </text>
 
-  <line x1="474" y1="270" x2="620" y2="682" stroke="#6366F1" stroke-width="2" stroke-linecap="round" marker-end="url(#arrowBlue)"/>
-  <line x1="720" y1="270" x2="720" y2="534" stroke="#6366F1" stroke-width="2" stroke-linecap="round" marker-end="url(#arrowBlue)"/>
-  <line x1="966" y1="270" x2="840" y2="608" stroke="#6366F1" stroke-width="2" stroke-linecap="round" marker-end="url(#arrowBlue)"/>
+  <line x1="344" y1="355" x2="528" y2="488" stroke="#475569" stroke-width="2.5" marker-end="url(#arrow)"/>
+  <line x1="344" y1="539" x2="528" y2="488" stroke="#475569" stroke-width="2.5" marker-end="url(#arrow)"/>
 
-  <line x1="920" y1="785" x2="1160" y2="541" stroke="#16A34A" stroke-width="2.5" stroke-linecap="round" marker-end="url(#arrowGreen)"/>
-  <line x1="920" y1="637" x2="1160" y2="694" stroke="#D97706" stroke-width="2.5" stroke-linecap="round" marker-end="url(#arrowAmber)"/>
-  <line x1="920" y1="711" x2="1160" y2="714" stroke="#D97706" stroke-width="2.5" stroke-linecap="round" marker-end="url(#arrowAmber)"/>
-
-  <line x1="520" y1="500" x2="420" y2="500" stroke="#94A3B8" stroke-width="2" stroke-dasharray="6 8"/>
-  <line x1="420" y1="500" x2="420" y2="852" stroke="#94A3B8" stroke-width="2" stroke-dasharray="6 8"/>
-
-  <line x1="520" y1="574" x2="470" y2="574" stroke="#94A3B8" stroke-width="2" stroke-dasharray="6 8"/>
-  <line x1="470" y1="574" x2="470" y2="852" stroke="#94A3B8" stroke-width="2" stroke-dasharray="6 8"/>
-
-  <line x1="520" y1="648" x2="520" y2="852" stroke="#94A3B8" stroke-width="2" stroke-dasharray="6 8"/>
-  <line x1="520" y1="722" x2="570" y2="722" stroke="#94A3B8" stroke-width="2" stroke-dasharray="6 8"/>
-  <line x1="570" y1="722" x2="570" y2="852" stroke="#94A3B8" stroke-width="2" stroke-dasharray="6 8"/>
-  <line x1="920" y1="796" x2="620" y2="796" stroke="#94A3B8" stroke-width="2" stroke-dasharray="6 8"/>
-  <line x1="620" y1="796" x2="620" y2="852" stroke="#94A3B8" stroke-width="2" stroke-dasharray="6 8"/>
-  <line x1="1270" y1="752" x2="1270" y2="852" stroke="#94A3B8" stroke-width="2" stroke-dasharray="6 8"/>
+  <line x1="1084" y1="488" x2="1268" y2="363" stroke="#16A34A" stroke-width="2.5" marker-end="url(#arrowGreen)"/>
+  <line x1="1084" y1="794" x2="1268" y2="526" stroke="#2563EB" stroke-width="2.5" marker-end="url(#arrowBlue)"/>
+  <line x1="1084" y1="794" x2="1268" y2="666" stroke="#D97706" stroke-width="2.5" marker-end="url(#arrow)"/>
+  <line x1="1528" y1="798" x2="1560" y2="798" stroke="#16A34A" stroke-width="2.5" marker-end="url(#arrowGreen)"/>
 </svg>

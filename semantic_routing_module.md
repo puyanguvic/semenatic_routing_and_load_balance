@@ -89,15 +89,46 @@ Architecture overview
 
 ### Alignment target
 
-This module is intentionally aligned to the semantic core described in the vLLM Semantic Router project documentation rather than to its full deployment envelope. The official project presents semantic routing as a signal-driven pipeline centered on four concerns: Signal Extraction, Decision Engine, Model Selection, and Plugin Chain. See [R4] and [R5].
+ASE should treat the vLLM Semantic Router project as the primary upstream baseline for the full routing system, not merely as a source of semantic-routing ideas. The upstream project already defines a production-oriented envelope with Envoy as the traffic-management layer, a Go ExtProc service as the intelligence layer, canonical `providers/routing/global` configuration ownership, and a signal-driven routing pipeline. See [R4], [R5], [R6], [R7], and [R8].
+
+Within ASE, that full upstream envelope is decomposed into separate design documents. This document focuses on the semantic-routing responsibilities inside that broader system, while gateway ingress, deployment shape, and downstream endpoint routing are specified in `architecture.md` and `load_balancing_module.md`.
+
+At the semantic-routing level, the upstream project presents routing as a signal-driven pipeline centered on four concerns: Signal Extraction, Decision Engine, Model Selection, and Plugin Chain. That semantic pipeline is the core responsibility specified here.
 
 ASE preserves that structure, but makes the module boundary stricter:
 
 - this document owns signal extraction, routing decisions, model selection, and per-decision plugin behavior
-- provider-facing deployment bindings and concrete backend resolution are intentionally outside this module
+- provider-facing deployment bindings and concrete backend resolution are intentionally outside this module document and are covered elsewhere in ASE
 - endpoint choice, health, retry, and redispatch belong to `load_balancing_module.md`
 
 This alignment matters because the Semantic Routing Module should read like a signal-driven decision engine, not like a gateway-plus-scheduler hybrid.
+
+### Implementation basis
+
+ASE should not stop at architectural inspiration. Where practical, the implementation should be based directly on the upstream `vllm-project/semantic-router` codebase and configuration model.
+
+That is especially relevant because the upstream project already provides a Go implementation of the router and ExtProc service, alongside the documented production architecture. For ASE, that is a strong fit: the gateway-facing routing path needs low overhead, high concurrency, and a predictable runtime model, all of which make the Go implementation a better starting point than inventing a new semantic-routing engine from scratch. See [R6], [R7], and [R8].
+
+### System placement
+
+The upstream deployment shape is:
+
+`Client -> Envoy / AI Gateway -> Semantic Router ExtProc Service -> Backend model endpoints`
+
+ASE should preserve that mental model even when the implementation is decomposed across internal modules. In other words:
+
+- Envoy or an equivalent gateway remains the traffic-management shell
+- the semantic routing module remains the decision engine invoked on the request path
+- downstream endpoint resolution may remain integrated with the upstream router, or may be delegated to ASE's separate Load Balancing Module depending on deployment mode
+
+Two deployment modes are therefore valid:
+
+1. `Upstream-compatible integrated mode`
+   The semantic-router-based service may project both logical-model choice and endpoint-routing headers for Envoy to consume.
+2. `ASE split mode`
+   The semantic routing module still runs on the request path, but the normative handoff artifact is the resolved logical model and routing metadata, while final endpoint selection is delegated to `load_balancing_module.md`.
+
+The ASE design should be able to reuse the upstream implementation while preserving the split-mode boundary as the preferred architectural contract.
 
 ### Core processing logic
 
@@ -130,21 +161,24 @@ The diagram below is the only architecture view used in this document. It is int
 
 Read the diagram from left to right.
 
-1. `Routing Inputs` are the request-scoped inputs the router reasons over: request content, control metadata, identity and governance context, and session context.
-2. `Configured Routing Surfaces` are the declarative semantic policy owned by this module:
-   - model metadata and decision-level `modelRefs` define the legal logical-model candidate set.
-   - signal definitions define the typed detectors the router may compute.
-   - routing decisions define priority, rule structure, algorithms, and per-decision plugins.
-3. The numbered boxes in `Semantic Routing Core` are the execution order:
-   - `1 Request Normalizer` produces the canonical routing object.
-   - `2 Signal Extraction Layer` computes typed routing evidence.
-   - `3 Decision Engine` matches the winning semantic decision.
-   - `4 Model Selection Layer` selects one logical model from the matched decision's `modelRefs`.
-   - `5 Plugin Chain` applies route-scoped post-decision processing.
-4. `Outputs and Outcomes` are the only valid module results:
-   - success: an enriched request carrying `model=<logical-model>`
-   - rejection: an explicit semantic failure owned by this module
-5. `Routing Trace, Reason Codes, and Audit Record` indicates that every stage must leave structured evidence for explainability and audit.
+1. `Traffic Shell` is the full upstream system baseline:
+   - client requests enter through an OpenAI-compatible API boundary
+   - Envoy or an equivalent AI gateway owns listeners, HTTP filters, timeout policy, and ExtProc invocation
+2. `Semantic Routing Module` is the document scope:
+   - `Canonical Routing Surface` is the semantic-routing-owned DSL under `routing.modelCards`, `routing.signals`, and `routing.decisions`
+   - `Provider / Deployment Inputs` are required system dependencies under `providers`, but they are not semantically owned by this module
+   - `Runtime / Shared Services` under `global` provide shared services such as observability, semantic cache, tools, and model-backed modules
+3. The numbered pipeline inside the central box is the semantic execution order:
+   - `1 Request Normalization`
+   - `2 Signal Extraction`
+   - `3 Decision Engine`
+   - `4 Model Selection + Plugin Chain`
+4. `Outputs and Integration` distinguishes semantic outputs from deployment-specific projections:
+   - the normative semantic output is the resolved logical model plus routing metadata
+   - upstream-compatible deployments may also project endpoint hints or routing headers
+   - semantic rejection remains an explicit module-owned outcome
+5. The bottom rule states the architectural invariant:
+   logical-model selection is the semantic source of truth, even when integrated deployments also emit downstream routing hints.
 
 ### Architectural position and boundary
 
@@ -157,14 +191,15 @@ Its contract is:
 - input: canonical request plus identity, policy, and session context
 - output: request enriched with the resolved logical model in `model` and routing metadata
 
-That contract is normative. The Semantic Routing Module may decide what logical model the request should use, but it may not decide where that logical model runs.
+That contract is normative for ASE split mode. The Semantic Routing Module decides what logical model the request should use. Final endpoint choice remains downstream unless ASE is explicitly running in the upstream-compatible integrated mode described above.
 
-To stay aligned with the vLLM Semantic Router project while preserving ASE's stronger module split, the boundary should be interpreted as follows:
+To stay aligned with the vLLM Semantic Router project while preserving ASE's stronger split architecture, the boundary should be interpreted as follows:
 
 - this module owns semantic interpretation and logical-model selection
 - this module may attach tags, rationale, and plugin outputs that constrain downstream dispatch
 - this module must not use endpoint health, queue depth, or retry state to choose the logical model
-- this module must not resolve preferred endpoints, providers, or concrete serving endpoints
+- if an upstream-compatible deployment projects endpoint hints or routing headers, those outputs are integration artifacts and must not be treated as a redefinition of semantic ownership
+- the architectural source of truth for ASE remains: logical-model choice first, endpoint choice second
 
 ### Architectural invariants
 
@@ -183,11 +218,11 @@ The semantic-router-aligned core is organized as a linear pipeline built around 
 | Component | Primary responsibility | Architectural output |
 | --- | --- | --- |
 | Request Normalizer | convert inbound API traffic into a canonical routing object | normalized request and routing context skeleton |
-| Signal Extraction Layer | execute configured detectors from `routing.signals` and assemble typed routing state | structured signal map for decision evaluation |
+| Signal Extraction Layer | execute configured detectors from `routing.signals` and invoke any required shared runtime modules to assemble typed routing state | structured signal map for decision evaluation |
 | Decision Engine | evaluate priority-ordered `routing.decisions` rules over typed signals | matched decision plus candidate `modelRefs` |
 | Model Selection Layer | select the final logical model from the matched decision's `modelRefs` using the configured algorithm and model-card constraints | authoritative logical-model decision plus selection rationale |
 | Plugin Chain | execute decision-coupled plugins after model selection | request annotations, safety tags, cache behavior, trace signals, optional augmentation hooks |
-| Handoff Contract | emit the normalized `model` assignment and routing metadata | enriched request or explicit semantic rejection |
+| Handoff Contract | emit the normalized `model` assignment, routing metadata, and optional upstream-compatible routing headers | enriched request or explicit semantic rejection |
 
 Request Normalizer
 ==================
@@ -248,7 +283,7 @@ An illustrative northbound request shape is shown below.
 Signal Extraction Layer
 =======================
 
-Signals are the intermediate representation between raw request context and final logical-model selection. In semantic-router, they are configured detectors under `routing.signals`, not ad hoc features embedded in code. They should remain explicit, inspectable, and typed closely enough that decision logic can consume them predictably.
+Signals are the intermediate representation between raw request context and final logical-model selection. In semantic-router, the route-visible detector definitions live under `routing.signals`, while some learned or model-backed capabilities may be supplied through shared runtime modules under `global.model_catalog.modules`. The important architectural rule is that signal computation remains explicit and typed; it should not dissolve into ad hoc feature logic embedded in request code paths.
 
 The signal taxonomy should align with the semantic-router configuration surface.
 
@@ -268,7 +303,7 @@ The signal taxonomy should align with the semantic-router configuration surface.
 | jailbreak | prompt-injection or abuse detection |
 | pii | sensitive-data detection and privacy gating |
 
-ASE should align with this taxonomy even if not every deployment enables every family. The module should still compute only the signals needed for the current decision path. Cheap signals should remain cheap, and expensive signals should be invoked only when they materially affect the outcome.
+ASE should align with this taxonomy even if not every deployment enables every family. The module should still compute only the signals needed for the current decision path. Cheap signals should remain cheap, and expensive signals should be invoked only when they materially affect the outcome. Shared services such as classifier modules, prompt guards, semantic cache, and tool catalogs may support the routing path, but they should remain subordinate to the explicit semantic decision pipeline shown in the architecture diagram.
 
 Decision Engine
 ===============
@@ -310,6 +345,8 @@ The current vLLM Semantic Router canonical contract makes the ownership boundary
 ASE should preserve that split. This document therefore owns the route-visible model view, not the provider-binding view. The Semantic Routing Module reasons over model capabilities, constraints, route rules, `modelRefs`, reasoning options, and optional LoRA choices. It does not own backend addresses, endpoint bindings, or provider failover state.
 
 At the system level, the model names used by `routing.modelCards` and by `routing.decisions[*].modelRefs[*].model` must resolve consistently against the provider-defined model catalog. That cross-reference is required for the overall router to work, but the semantic decision itself should remain driven by the `routing` subtree.
+
+This distinction is especially important because the upstream project has already migrated from older flat configuration shapes toward the canonical v0.3 contract. Legacy shapes such as top-level `model_config`, `vllm_endpoints`, and flat routing blocks are migration inputs, not the target design surface. ASE should therefore target the canonical contract directly and avoid inventing a second parallel schema. See [R5].
 
 Each routable logical-model entry should expose, at minimum:
 
@@ -356,6 +393,7 @@ The output of the Semantic Routing Module is the formal handoff artifact to the 
 | `policy_tags` | optional | carry governance annotations that may matter to downstream handling and audit |
 | `debug_trace_id` | optional | correlate routing decisions with internal traces and debug artifacts |
 | `continuity_metadata` | optional | preserve session-related context such as continuity or escalation state |
+| `destination_hint` or projected route header such as `x-vsr-destination-endpoint` | optional | upstream-compatible deployment artifact for Envoy or gateway integration; not the semantic source of truth in ASE split mode |
 | ranking or confidence detail | optional | support diagnostics where ranked-candidate output is useful |
 
 At this module boundary, the normalized `model` field denotes a logical model, not a provider endpoint and not a concrete provider-specific SKU. Any mapping from that logical model to provider endpoints belongs to the Load Balancing Module.
@@ -434,6 +472,8 @@ For this module, the important point is ownership:
 - `global` contains sparse router-wide runtime overrides and is also not owned by this module
 
 This document therefore specifies the `routing` subtree in detail and references `providers` only where model-name consistency matters.
+
+If ASE vendors or forks the upstream implementation, it should keep the upstream canonical YAML contract as the source of truth. Local wrappers, CRDs, Helm values, or UI editors may project into that contract, but they should not replace it.
 
 Notation
 --------
@@ -561,6 +601,8 @@ global:
 
 The architectural requirement is that semantic routing remain declarative, reviewable, and versioned under the canonical `routing` surface. Provider `backend_refs`, endpoint weights, and execution failover remain outside this module's ownership even though they exist in the full router configuration under `providers` or downstream execution systems.
 
+When ASE is implemented directly on top of the upstream repository, it should also preserve the upstream fragment taxonomy around `config/signal/`, `config/decision/`, `config/algorithm/`, and `config/plugin/` rather than re-embedding those fragments into application code. That layout is part of how the upstream project keeps routing behavior reviewable and testable. See [R5] and [R7].
+
 Testing
 =======
 
@@ -584,11 +626,16 @@ The work should be broken down into mergeable tasks that preserve a working rout
 
 | Task | Time Estimate | Tracker |
 | --- | --- | --- |
+| Establish upstream semantic-router adoption strategy | 3 days | |
 | Implement request normalization and routing-context assembly | 4 days | |
 | Implement typed signal extraction and decision-rule evaluation | 1 week | |
 | Implement `routing.modelCards` and model-selection algorithms | 1 week | |
 | Implement plugin execution, output contract, and audit trace | 4 days | |
 | Add semantic-routing test coverage and policy regression validation | 3 days | |
+
+## Establish upstream semantic-router adoption strategy
+
+Decide whether ASE will vendor, fork, or wrap the upstream Go ExtProc service, and lock down how canonical YAML, Envoy integration, and repository config fragments will be carried forward without schema drift.
 
 ## Implement request normalization and routing-context assembly
 
@@ -622,3 +669,9 @@ R3. vLLM Semantic Router: Signal Driven Decision Routing for Mixture-of-Modality
 R4. vLLM Semantic Router documentation, https://vllm-semantic-router.com/docs/intro/
 
 R5. vLLM Semantic Router configuration documentation, https://vllm-semantic-router.com/docs/installation/configuration/
+
+R6. vLLM Semantic Router system architecture documentation, https://vllm-semantic-router.com/docs/overview/architecture/system-architecture/
+
+R7. `vllm-project/semantic-router` GitHub repository, https://github.com/vllm-project/semantic-router
+
+R8. vLLM Semantic Router Envoy ExtProc integration documentation, https://vllm-semantic-router.com/docs/overview/architecture/envoy-extproc
