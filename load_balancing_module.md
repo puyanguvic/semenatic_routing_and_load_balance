@@ -1,6 +1,13 @@
-# ASE Load Balancing Module Design
+ASE Load Balancing Module Design
 
-## Introduction
+Author(s): PU Yang/n000000000
+
+Status: Intent to implement
+
+[[_TOC_]]
+
+Introduction
+============
 
 This document defines the design of the Load Balancing Module in the ASE Semantic Routing and Load Balancing architecture. The Load Balancing Module is the second decision stage in the request path and is responsible for selecting which concrete provider endpoint should execute a request whose target logical model has already been resolved.
 
@@ -8,9 +15,10 @@ This document is not a generic overview of traffic distribution. It is the gover
 
 Within the overall document set, this file defines instance-level dispatch only. System-wide architecture is defined in `architecture.md`, and model-level decision making is defined in `semantic_routing_module.md`.
 
-## Background
+Background
+==========
 
-### Module Problem
+### Module problem
 
 The Load Balancing Module solves the following problem:
 
@@ -20,7 +28,7 @@ This is a provider-endpoint-selection problem, not a logical-model-selection pro
 
 In production, this problem is complicated by partial endpoint failures, uneven request sizes, long-lived streaming requests, heterogeneous backends, administrative drain behavior, and inconsistent telemetry quality across serving systems.
 
-### Why This Module Must Exist
+### Why this module must exist
 
 The Load Balancing Module exists because choosing where a request should execute is a different problem from choosing what logical model should execute it.
 
@@ -28,7 +36,7 @@ Once the logical model is fixed, the system must reason about endpoint weight, p
 
 ASE therefore isolates the Load Balancing Module as the module that owns endpoint choice and runtime dispatch behavior. It must honor the logical-model assignment it receives and operate within that constraint.
 
-### Design Objectives
+### Design objectives
 
 The module is designed to achieve the following outcomes:
 
@@ -39,7 +47,7 @@ The module is designed to achieve the following outcomes:
 - preserve strict separation from semantic logical-model selection
 - support heterogeneous backends with varying telemetry richness
 
-### Governing Principles
+### Governing principles
 
 The module follows five governing principles.
 
@@ -47,9 +55,10 @@ First, the Load Balancing Module is endpoint-centric, not logical-model-centric.
 
 ASE aligns this module with mature load-balancer practice. The scheduling vocabulary used by NGINX, the health and retry controls documented by HAProxy, and rich runtime metrics from systems such as vLLM provide the right conceptual foundation for the module. See [R3], [R4], and [R5].
 
-## Scope
+Scope
+=====
 
-### In Scope
+### In scope
 
 This document defines:
 
@@ -64,7 +73,7 @@ This document defines:
 - observability requirements for dispatch decisions
 - configuration and operational requirements specific to instance-level routing
 
-### Out of Scope
+### Out of scope
 
 This document does not define:
 
@@ -76,58 +85,32 @@ This document does not define:
 
 Those responsibilities belong to `semantic_routing_module.md` or to broader ASE control-plane components outside this module.
 
-## Design
+Architecture overview
+=====================
 
-### Module Summary
+### Module summary
 
 The Load Balancing Module is the authoritative endpoint-selection module in ASE. It accepts a request whose `model` already carries a resolved logical model, maps that logical model to an endpoint pool, filters provider endpoints using health and eligibility rules, applies scheduling policy, and dispatches the request to a concrete execution target.
 
 The key property of the module is that it resolves a provider endpoint, not a logical model. Its value comes from making runtime dispatch reliable, observable, and operationally tunable without collapsing back into semantic decision making.
 
-### Role in the Two-Stage Process
+### Role in the two-stage process
 
 ASE follows a `select -> route` process.
 
 - The Semantic Routing Module owns semantic analysis and logical-model selection.
 - The Load Balancing Module owns endpoint-pool resolution and provider-endpoint routing.
-- This module corresponds to the execution `route` stage, and is closest to the paper's `endpoint router`, not the semantic `select` stage.
+- This module corresponds to the execution `route` stage, and is closest to the endpoint router, not the semantic `select` stage.
 
 This means the Load Balancing Module is primarily a resource-scheduling and availability module. It resolves the selected logical model to a concrete endpoint, then applies weighted routing, session affinity, provider adaptation, and failover behavior. It does not decide what capability class the request needs.
 
-### Module at a Glance
+### Module at a glance
 
 The diagram below summarizes the Load Balancing Module before the more detailed internal design diagram.
 
 ![Load Balancing module overview](diagrams/load-balancing-module-overview.svg)
 
-### Architectural Position
-
-The Load Balancing Module appears in the request path as follows:
-
-`Client Request -> Semantic Routing Module -> Request Enrichment (logical model in model field) -> Load Balancing Module -> Selected Provider Endpoint`
-
-Its contract is:
-
-- input: request with resolved logical model in `model` plus route metadata
-- output: selected provider endpoint plus dispatch behavior governed by runtime policy
-
-That contract is normative. The Load Balancing Module may decide where the selected logical model runs, but it may not change what logical model the request has been assigned.
-
-The module should also produce a stable dispatch outcome contract for observability and downstream control paths.
-
-| Field | Requirement Level | Purpose |
-| --- | --- | --- |
-| `request_id` | required | preserve request identity across semantic and infrastructure decisions |
-| `model` | required | record which semantic logical-model decision this dispatch honored |
-| `pool_id` | required | identify the endpoint pool chosen for execution |
-| `provider_id` | optional | identify which provider or serving system supplied the chosen endpoint |
-| `endpoint_id` | required on success | identify the concrete provider endpoint that was selected |
-| `dispatch_status` | required | distinguish success, immediate failure, retry exhaustion, and pool unavailability |
-| `retry_count` | optional | preserve how much bounded recovery was attempted |
-| `redispatch_count` | optional | record whether recovery required switching endpoints |
-| `dispatch_reason` or algorithm detail | optional | explain why the endpoint was chosen or why dispatch failed |
-
-### System Design Diagram
+### System design diagram
 
 The diagram below shows the internal flow of the Load Balancing Module after logical-model resolution has already completed.
 
@@ -172,7 +155,34 @@ flowchart LR
     Failure -. failure events .-> Obs
 ```
 
-### Architectural Invariants
+### Architectural position
+
+The Load Balancing Module appears in the request path as follows:
+
+`Client Request -> Semantic Routing Module -> Request Enrichment (logical model in model field) -> Load Balancing Module -> Selected Provider Endpoint`
+
+Its contract is:
+
+- input: request with resolved logical model in `model` plus route metadata
+- output: selected provider endpoint plus dispatch behavior governed by runtime policy
+
+That contract is normative. The Load Balancing Module may decide where the selected logical model runs, but it may not change what logical model the request has been assigned.
+
+The module should also produce a stable dispatch outcome contract for observability and downstream control paths.
+
+| Field | Requirement level | Purpose |
+| --- | --- | --- |
+| `request_id` | required | preserve request identity across semantic and infrastructure decisions |
+| `model` | required | record which semantic logical-model decision this dispatch honored |
+| `pool_id` | required | identify the endpoint pool chosen for execution |
+| `provider_id` | optional | identify which provider or serving system supplied the chosen endpoint |
+| `endpoint_id` | required on success | identify the concrete provider endpoint that was selected |
+| `dispatch_status` | required | distinguish success, immediate failure, retry exhaustion, and pool unavailability |
+| `retry_count` | optional | preserve how much bounded recovery was attempted |
+| `redispatch_count` | optional | record whether recovery required switching endpoints |
+| `dispatch_reason` or algorithm detail | optional | explain why the endpoint was chosen or why dispatch failed |
+
+### Architectural invariants
 
 The following invariants are mandatory for this module.
 
@@ -182,13 +192,11 @@ The following invariants are mandatory for this module.
 4. Retry and redispatch behavior must be explicit, finite, and observable.
 5. Failure classification must preserve the distinction between semantic success and infrastructure failure.
 
-These invariants define acceptable dispatch behavior even as backend technologies and scheduling implementations evolve.
-
-### Internal Architecture
+### Internal architecture
 
 The module is composed of six logical components.
 
-| Component | Primary Responsibility | Architectural Output |
+| Component | Primary responsibility | Architectural output |
 | --- | --- | --- |
 | Pool Resolver | map the resolved logical model to a logical endpoint pool | pool identity and pool configuration |
 | Endpoint Registry | provide endpoint inventory and static metadata | candidate endpoint universe for the selected pool |
@@ -197,13 +205,21 @@ The module is composed of six logical components.
 | Reliability Controller | apply retry, redispatch, and dispatch-time failover policy | dispatch outcome and bounded recovery behavior |
 | Metrics Adapter | normalize generic and backend-native telemetry | scheduler-facing runtime metrics |
 
-The architecture is intentionally staged. Pool resolution defines the search space, endpoint and health data constrain that space, the scheduler selects within it, and the reliability controller manages the execution attempt.
+### Dispatch framework
 
-### Backend Pool Model
+Dispatch should be understood as a staged reduction process rather than a single opaque scheduling step.
 
-The Load Balancing Module schedules within logical endpoint pools associated with the resolved logical model.
+1. Resolve the logical model in `model` to the endpoint pool that is allowed to serve it.
+2. Build the candidate set from endpoint registry membership and static metadata.
+3. Apply hard exclusions for health, drain, locality, protocol, and policy incompatibility.
+4. Apply affinity preference when enabled and still safe.
+5. Select an endpoint using the configured scheduling algorithm and runtime metrics.
+6. Dispatch the request and classify the outcome.
 
-Each pool should be treated as the execution domain for a specific semantic decision. The module should not search globally across all backends once a logical model has already been selected.
+Pool Resolver
+=============
+
+The Pool Resolver schedules within logical endpoint pools associated with the resolved logical model. Each pool should be treated as the execution domain for a specific semantic decision. The module should not search globally across all backends once a logical model has already been selected.
 
 The same logical model may be backed by multiple provider endpoints. This is a first-class use case, not an exception path. The purpose of the Load Balancing Module is to route among those equivalent or near-equivalent endpoints under runtime policy without reopening semantic model selection.
 
@@ -219,78 +235,19 @@ Each pool definition should expose, at minimum:
 
 ASE should support more than one kind of pool, including homogeneous internal pools, heterogeneous weighted pools, external provider pools, hybrid fallback pools, and compliance-scoped pools restricted by tenant or region.
 
-### Scheduling Inputs
+Endpoint Registry and Health Manager
+====================================
+
+The Endpoint Registry provides the static and slowly changing metadata required to build the candidate set for a pool. The Health Manager provides the dynamic serviceability state required to exclude endpoints that should not currently receive traffic.
 
 The scheduler operates on a structured runtime view assembled from four input classes.
 
-| Input Class | Purpose | Representative Inputs |
+| Input class | Purpose | Representative inputs |
 | --- | --- | --- |
 | Static Pool Inputs | define the dispatch domain and configured policy | selected logical model, pool membership, provider, weights, locality, endpoint priority |
 | Health Inputs | determine whether an endpoint is serviceable | active health state, passive failure rate, circuit state, drain state |
 | Runtime Load Inputs | describe current execution pressure | in-flight requests, queue depth, latency, token throughput, rate-limit status, provider-side quota state |
 | Affinity Inputs | preserve useful locality where possible | session ID, conversation ID, tenant ID, sticky hash |
-
-Without these inputs, endpoint choice becomes blind traffic spreading. With them, the Load Balancing Module becomes a controlled scheduling problem grounded in current system state.
-
-### Dispatch Framework
-
-Dispatch should be understood as a staged reduction process rather than a single opaque scheduling step.
-
-#### Stage 1: Resolve Pool
-
-The module maps the resolved logical model in the `model` field to the logical endpoint pool that is allowed to serve it. This establishes the execution domain for the request.
-
-#### Stage 2: Build Candidate Set
-
-The module retrieves all endpoints that belong to the selected pool together with their static metadata and current runtime state.
-
-#### Stage 3: Apply Hard Exclusions
-
-Endpoints that are down, draining, policy-ineligible, locality-ineligible, or otherwise incapable of serving the request are removed first. Scheduling must not optimize over endpoints that should never receive traffic.
-
-#### Stage 4: Apply Affinity Preference
-
-If stickiness is enabled, the module should prefer the previously associated endpoint when it remains healthy and eligible. Affinity is applied after hard exclusion because locality cannot override serviceability.
-
-#### Stage 5: Select Endpoint
-
-The scheduler chooses the best provider endpoint among the remaining candidates using the configured scheduling algorithm and available runtime metrics.
-
-#### Stage 6: Dispatch and Observe
-
-The module dispatches the request, classifies the outcome, and updates health, reliability, and observability state accordingly.
-
-This staged framework is central to explainability. It allows operators to understand not only which provider endpoint was chosen, but why other endpoints were excluded or deprioritized.
-
-### Scheduling Model
-
-The Load Balancing Module should support a family of scheduling strategies rather than a single fixed algorithm. Different backend topologies favor different policies.
-
-| Scheduling Strategy | Best Fit | Primary Tradeoff |
-| --- | --- | --- |
-| Weighted Random / Weighted Round Robin | simple or relatively homogeneous pools | low overhead, limited runtime sensitivity |
-| Least Connections / Least In-Flight | variable-duration or streaming workloads | better concurrency awareness, needs current state |
-| Hash / Affinity-Based Placement | cache locality or session continuity sensitive workloads | stronger locality, weaker short-term fairness |
-| Priority / Weighted Failover | primary-backup or tiered backend topologies | explicit preference ordering, less even spread |
-| Metrics-Aware Scheduling | rich telemetry environments | better adaptation, stronger dependency on telemetry quality |
-
-The initial ASE deployment can start with simpler strategies such as weighted random, weighted round robin, or least in-flight and evolve toward richer metrics-aware approaches without changing the module boundary.
-
-### Advanced Scheduling Strategies
-
-In addition to baseline strategies, ASE should treat several LLM-specific scheduling patterns as first-class policies rather than ad hoc implementation details.
-
-| Strategy | Required Signals | Best Fit | Primary Caveat |
-| --- | --- | --- | --- |
-| Consistent Hashing / Stable Affinity | session ID, conversation ID, or request-class hash | preserve KV-cache or prefix-cache locality across related requests | locality must be breakable when the preferred endpoint is unhealthy or overloaded |
-| Power of Two Choices | lightweight load signal such as in-flight requests or queue depth | better short-term balance than random selection at low overhead | still depends on reasonably fresh load state |
-| Least Queue / Queue-Aware | queue depth, waiting requests, or admission backlog | prefill-heavy or bursty clusters where waiting time dominates | poor queue telemetry leads to poor choices |
-| Token-Aware Scheduling | prompt-token estimate, `max_tokens`, token throughput | highly variable request sizes where raw request count is misleading | estimates are approximate and should not be treated as exact cost |
-| Cache-Aware / Prefix-Aware Routing | prefix hash, cache-hit probability, or session locality hint | repeated system prompts, agent workloads, or templated RAG requests | can reduce fairness if locality is over-weighted |
-
-These strategies are composable. For example, ASE may use Power of Two Choices to reduce candidate-selection overhead, then break ties using least in-flight load or cache-locality preference.
-
-### Health Model
 
 Endpoint health must be modeled explicitly. Dispatch quality depends on being able to distinguish endpoints that are healthy, degraded, unavailable, or draining for administrative reasons.
 
@@ -307,7 +264,33 @@ Recovery must also be policy-controlled. An endpoint that has just recovered sho
 
 Circuit-breaking state may be layered on top of endpoint health. An `open` circuit suppresses traffic to a recently failing endpoint, while a `half_open` circuit permits controlled probes before the endpoint is returned to normal service. Circuit state is an operational safety mechanism and should remain visible in dispatch telemetry.
 
-### Reliability Model
+Scheduler
+=========
+
+The scheduler chooses the best provider endpoint among the remaining eligible candidates. It should support a family of scheduling strategies rather than a single fixed algorithm because different backend topologies favor different policies.
+
+| Scheduling strategy | Best fit | Primary tradeoff |
+| --- | --- | --- |
+| Weighted Random / Weighted Round Robin | simple or relatively homogeneous pools | low overhead, limited runtime sensitivity |
+| Least Connections / Least In-Flight | variable-duration or streaming workloads | better concurrency awareness, needs current state |
+| Hash / Affinity-Based Placement | cache locality or session continuity sensitive workloads | stronger locality, weaker short-term fairness |
+| Priority / Weighted Failover | primary-backup or tiered backend topologies | explicit preference ordering, less even spread |
+| Metrics-Aware Scheduling | rich telemetry environments | better adaptation, stronger dependency on telemetry quality |
+
+In addition to baseline strategies, ASE should treat several LLM-specific scheduling patterns as first-class policies rather than ad hoc implementation details.
+
+| Strategy | Required signals | Best fit | Primary caveat |
+| --- | --- | --- | --- |
+| Consistent Hashing / Stable Affinity | session ID, conversation ID, or request-class hash | preserve KV-cache or prefix-cache locality across related requests | locality must be breakable when the preferred endpoint is unhealthy or overloaded |
+| Power of Two Choices | lightweight load signal such as in-flight requests or queue depth | better short-term balance than random selection at low overhead | still depends on reasonably fresh load state |
+| Least Queue / Queue-Aware | queue depth, waiting requests, or admission backlog | prefill-heavy or bursty clusters where waiting time dominates | poor queue telemetry leads to poor choices |
+| Token-Aware Scheduling | prompt-token estimate, `max_tokens`, token throughput | highly variable request sizes where raw request count is misleading | estimates are approximate and should not be treated as exact cost |
+| Cache-Aware / Prefix-Aware Routing | prefix hash, cache-hit probability, or session locality hint | repeated system prompts, agent workloads, or templated RAG requests | can reduce fairness if locality is over-weighted |
+
+Affinity exists to improve locality, not to weaken availability. Useful affinity keys include session ID, conversation ID, tenant ID, and request-class hashes that approximate cache reuse or backend warm state. Affinity may improve session continuity, prefix-cache locality, and hot-state reuse, but it should always remain subordinate to endpoint eligibility and health.
+
+Reliability Controller
+======================
 
 Reliability behavior is part of the module design, not an implementation afterthought.
 
@@ -319,15 +302,19 @@ For streaming responses, redispatch is usually unsafe once bytes or tokens have 
 
 If retry and redispatch are exhausted, the module must emit a clear infrastructure failure rather than silently collapsing the error into a semantic-routing problem.
 
-### Affinity and Locality Model
+Failure classification must remain explicit.
 
-Affinity exists to improve locality, not to weaken availability.
+| Failure class | Meaning | Typical cause |
+| --- | --- | --- |
+| No Eligible Endpoint | the selected logical model resolves to a pool, but no endpoint is eligible to serve it | all endpoints down, draining, policy-ineligible, or filtered out |
+| Dispatch Failure | an eligible endpoint was chosen, but the immediate dispatch attempt failed | connect failure, admission failure, protocol failure |
+| Retry Exhaustion | a dispatch failure was retried or redispatched within policy, but all attempts failed | repeated connect failures, repeated endpoint instability |
+| Pool Unavailable | the pool as a whole cannot currently serve traffic | pool-wide outage, full drain, region-wide restriction |
 
-Useful affinity keys include session ID, conversation ID, tenant ID, and request-class hashes that approximate cache reuse or backend warm state. Affinity may improve session continuity, prefix-cache locality, and hot-state reuse, but it should always remain subordinate to endpoint eligibility and health.
+Although the Load Balancing Module is not the semantic governance layer, it is still a security- and operations-relevant module because it controls the actual execution path to backend systems. At minimum, it should support explicit endpoint allowlists, protocol and TLS policy per backend, controlled external fallback, backend isolation by tenant or region when required, safe draining for maintenance, and telemetry suitable for incident response.
 
-Consistent placement strategies may be used where stable assignment matters, but the module must still be able to break affinity when the preferred endpoint is unhealthy, draining, or overloaded beyond policy.
-
-### Metrics and Runtime State
+Metrics Adapter and Backend Compatibility
+=========================================
 
 The module should be able to operate correctly using generic telemetry and improve when richer backend-native telemetry exists.
 
@@ -342,13 +329,9 @@ Generic metrics that should work across backend types include:
 
 When available, richer backend-native telemetry may also be incorporated, such as queue depth, token throughput, GPU utilization, KV cache usage, and prefix-cache hit potential. vLLM-style metrics endpoints are particularly useful in this category. See [R5].
 
-The architectural principle is portability: ASE should benefit from rich metrics without depending on a single serving stack in order to function correctly.
-
-### Canonical Runtime Metrics Vocabulary
-
 ASE should normalize backend-native telemetry into a small canonical vocabulary before the scheduler consumes it. Scheduling policy should target logical metrics rather than vendor-specific metric names.
 
-| Canonical Metric | Meaning | Example Backend-Native Signal | Primary Use |
+| Canonical metric | Meaning | Example backend-native signal | Primary use |
 | --- | --- | --- | --- |
 | `requests_running` | active requests currently executing on an endpoint | `vllm:num_requests_running` | least in-flight and overload detection |
 | `requests_waiting` | requests queued or waiting for admission | `vllm:num_requests_waiting` | least-queue and queue-aware scheduling |
@@ -365,13 +348,9 @@ ASE should normalize backend-native telemetry into a small canonical vocabulary 
 
 Not every backend will expose every metric. The normalization layer should preserve missing values explicitly so that schedulers can degrade gracefully rather than pretending absent telemetry is a healthy zero.
 
-### Backend Compatibility and Degradation Model
+Not all inference backends expose the same operational surface. Some provide rich `/metrics` and `/health` endpoints, while others provide only coarse availability signals or no scheduler-friendly telemetry at all. ASE should therefore classify backend integrations by capability level.
 
-Not all inference backends expose the same operational surface. Some provide rich `/metrics` and `/health` endpoints, while others provide only coarse availability signals or no scheduler-friendly telemetry at all.
-
-ASE should therefore classify backend integrations by capability level.
-
-| Capability Level | Typical Signals Available | Scheduling Modes That Fit |
+| Capability level | Typical signals available | Scheduling modes that fit |
 | --- | --- | --- |
 | Level 0: minimal | passive failure observation, connect success, HTTP status | weighted round robin, priority failover |
 | Level 1: basic | active health, request latency, in-flight count | least in-flight, Power of Two Choices |
@@ -382,20 +361,15 @@ This compatibility model is operationally important. A backend that lacks `/metr
 
 Provider-specific request adaptation, including auth injection or protocol shaping, may occur after endpoint selection. That work belongs to this module or its execution adapters because it depends on the chosen provider endpoint, not on semantic model selection.
 
-### Failure Semantics
+Interaction between the Semantic Routing Module and the Load Balancing Module
+============================================================================
 
-The Load Balancing Module must classify failures by dispatch stage so that operators can distinguish an endpoint-selection failure from a semantic-routing failure.
+The interaction with the upstream Semantic Routing Module is intentionally narrow and explicit.
 
-| Failure Class | Meaning | Typical Cause |
-| --- | --- | --- |
-| No Eligible Endpoint | the selected logical model resolves to a pool, but no endpoint is eligible to serve it | all endpoints down, draining, policy-ineligible, or filtered out |
-| Dispatch Failure | an eligible endpoint was chosen, but the immediate dispatch attempt failed | connect failure, admission failure, protocol failure |
-| Retry Exhaustion | a dispatch failure was retried or redispatched within policy, but all attempts failed | repeated connect failures, repeated endpoint instability |
-| Pool Unavailable | the pool as a whole cannot currently serve traffic | pool-wide outage, full drain, region-wide restriction |
-
-These categories matter because they let operators distinguish semantic success followed by infrastructure failure, isolated endpoint instability, and pool-wide unavailability.
-
-### Observability
+- The Semantic Routing Module supplies the authoritative logical model in `model`.
+- The Load Balancing Module resolves only the endpoint pool associated with that logical model.
+- Route metadata may constrain dispatch policy, but it must not reopen logical-model choice under normal operation.
+- A downstream failure after model selection must remain classified as infrastructure failure, not be rewritten as semantic rejection.
 
 The Load Balancing Module must expose operationally useful telemetry because its decisions are driven by runtime state and often change rapidly under load.
 
@@ -412,9 +386,8 @@ Core metrics should include:
 
 Useful trace or log fields include request ID, selected logical model, resolved endpoint pool, selected provider, selected provider endpoint, scheduling algorithm, retry count, redispatch count, and final dispatch outcome.
 
-The minimum dispatch trace should preserve enough state to reconstruct the path from resolved logical model, to pool, to candidate filtering, to selected provider endpoint, to final dispatch result.
-
-### Configuration Model
+Configuration
+=============
 
 The module should be configured declaratively rather than through code changes. This is necessary so that scheduling and reliability policy remain reviewable and tunable as fleet conditions evolve.
 
@@ -430,6 +403,38 @@ The configuration surface should at least cover:
 - scheduler fallback policy by backend capability tier
 - stickiness or affinity policy
 - metrics-adapter bindings
+
+Notation
+--------
+
+ASE uses declarative YAML or JSON configuration for load balancing. The XML-specific notation in the generic template does not apply to this module.
+
+load_balancing
+--------------
+
+| Element | Possible values | Description |
+| --- | --- | --- |
+| `load_balancing:` | object | Top-level Load Balancing Module configuration |
+| `  default_algorithm:` | string | Default endpoint-selection strategy when a pool does not override it |
+| `  retry_policy:` | object | Bounded retry and redispatch controls |
+| `  affinity_policy:` | object | Stickiness controls such as key, enablement, and mode |
+| `  pools:` | list | Logical-model-to-pool mappings and endpoint membership |
+| `    logical_model:` | string | Logical model served by the pool |
+| `    algorithm:` | string | Pool-specific scheduling strategy |
+| `    metrics_capability:` | string | Backend telemetry capability tier used for scheduler fallback |
+| `    endpoints:` | list | Concrete provider endpoints in the pool |
+
+pools.endpoints
+---------------
+
+| Element | Possible values | Description |
+| --- | --- | --- |
+| `id` | string | Stable endpoint identifier used for scheduling and observability |
+| `provider` | string | Provider or serving system backing the endpoint |
+| `address` | string | Network address or adapter target used for dispatch |
+| `weight` | integer | Relative traffic weight when weighted strategies are used |
+| `priority` | integer | Preferred order for failover-oriented policies |
+| `zone` or `region` | string | Locality metadata used for placement and compliance controls |
 
 An illustrative logical configuration is shown below.
 
@@ -468,31 +473,64 @@ load_balancing:
 
 The exact DSL is implementation-specific. The architectural requirement is that dispatch and reliability behavior remain declarative, reviewable, and versioned.
 
-### Security and Operational Implications
+Testing
+=======
 
-Although the Load Balancing Module is not the semantic governance layer, it is still a security- and operations-relevant module because it controls the actual execution path to backend systems.
+The automated testing strategy for this module should verify endpoint selection correctness, failure handling, and preservation of the semantic-to-dispatch boundary.
 
-At minimum, it should support:
+The testing plan should include:
 
-- explicit endpoint allowlists
-- protocol and TLS policy per backend
-- controlled external fallback
-- backend isolation by tenant or region when required
-- safe draining for maintenance
-- telemetry suitable for incident response
+- pool-resolution tests that verify the selected logical model maps to the correct endpoint pool and never escapes that pool
+- endpoint-filtering tests that validate health, drain, locality, and policy exclusions before scheduling occurs
+- scheduler tests for weighted, least-inflight, affinity, and metrics-aware strategies using deterministic runtime fixtures
+- reliability tests for bounded retry, bounded redispatch, streaming failure handling, and retry exhaustion
+- backend-compatibility tests that prove the scheduler degrades correctly across telemetry capability levels
+- observability tests that verify dispatch traces preserve pool, endpoint, retry, redispatch, and final failure classification
 
-These controls make the dispatch layer operationally trustworthy without turning it into a semantic policy engine.
+Existing unit and integration harnesses are sufficient if they can inject health and runtime-state changes deterministically. If not, a dedicated dispatch test harness should be added so scheduling and failover behavior can be validated repeatably.
 
-### Architectural Consequences
+Task breakdown
+==============
 
-This design makes dispatch behavior tunable and observable, but it also imposes obligations on the implementation.
+The work should be broken down into mergeable tasks that preserve a working dispatch path after each step.
 
-The module must maintain a stable logical-model-to-pool contract, preserve explicit health semantics, and keep retry and redispatch behavior visible to operators. It must also resist architectural drift. If prompt meaning or business policy starts to directly drive endpoint selection inside this module, or if this module silently rewrites logical-model choice during failure handling, the boundary with the Semantic Routing Module has been violated and the design has degraded.
+| Task | Time Estimate | Tracker |
+| --- | --- | --- |
+| Implement logical-model-to-pool resolution and endpoint registry | 4 days | |
+| Implement health management and hard eligibility filtering | 1 week | |
+| Implement scheduler strategies and affinity controls | 1 week | |
+| Implement retry, redispatch, and provider-adapter recovery logic | 4 days | |
+| Add dispatch observability and failure-injection test coverage | 3 days | |
 
-## References
+## Implement logical-model-to-pool resolution and endpoint registry
 
-- [R1] `architecture.md`, ASE Semantic Routing and Load Balancing Architecture
-- [R2] `semantic_routing_module.md`, ASE Semantic Routing Module Design
-- [R3] NGINX HTTP Load Balancing Documentation, https://docs.nginx.com/nginx/admin-guide/load-balancer/http-load-balancer/
-- [R4] HAProxy Reliability and Health Check Documentation, https://www.haproxy.com/documentation/haproxy-configuration-tutorials/reliability/
-- [R5] vLLM Metrics Documentation, https://docs.vllm.ai/en/stable/design/metrics/
+Add the stable mapping from semantic logical models to execution pools together with the endpoint metadata needed to build candidate sets.
+
+## Implement health management and hard eligibility filtering
+
+Add active and passive health evaluation, drain handling, and exclusion logic so the scheduler operates only on serviceable endpoints.
+
+## Implement scheduler strategies and affinity controls
+
+Implement the baseline and metrics-aware scheduling policies together with safe affinity handling that never overrides health or hard eligibility.
+
+## Implement retry, redispatch, and provider-adapter recovery logic
+
+Add bounded recovery behavior, provider-specific dispatch adapters, and explicit failure classification for exhausted retries and unavailable pools.
+
+## Add dispatch observability and failure-injection test coverage
+
+Add metrics, logs, traces, and fault-injection tests that protect dispatch behavior and failure attribution from regression.
+
+References
+==========
+
+R1. `architecture.md`, ASE Semantic Routing and Load Balancing Architecture
+
+R2. `semantic_routing_module.md`, ASE Semantic Routing Module Design
+
+R3. NGINX HTTP Load Balancing Documentation, https://docs.nginx.com/nginx/admin-guide/load-balancer/http-load-balancer/
+
+R4. HAProxy Reliability and Health Check Documentation, https://www.haproxy.com/documentation/haproxy-configuration-tutorials/reliability/
+
+R5. vLLM Metrics Documentation, https://docs.vllm.ai/en/stable/design/metrics/
