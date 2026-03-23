@@ -51,7 +51,7 @@ The module follows five governing principles.
 
 First, the Semantic Routing Module is logical-model-centric, not server-centric. Second, hard constraints and policy constraints must be applied before optimization. Third, routing should be expressed as a signal-driven decision system with explicit signal extractors, declarative decision rules, model-selection algorithms, and per-decision plugins rather than hidden heuristics embedded in code paths. Fourth, every final decision must leave a recoverable reason trail. Fifth, governance-sensitive checks must happen before the request reaches an inference backend.
 
-ASE is aligned with the signal-driven design direction described in vLLM Semantic Router, especially its separation of `routing.signals`, `routing.decisions`, `modelRefs`, selection algorithms, and plugin execution. ASE adopts that semantic core while preserving a strict handoff to the downstream Load Balancing Module. See [R3], [R4], and [R5].
+ASE is aligned with the signal-driven design direction described in vLLM Semantic Router, especially its separation of `routing.signals`, `routing.decisions`, `modelRefs`, selection algorithms, and plugin execution. ASE adopts that semantic core while preserving a strict handoff to the downstream Load Balancing Module. See [R3], [R4], [R5], and [R9].
 
 Scope
 =====
@@ -89,11 +89,11 @@ Architecture overview
 
 ### Alignment target
 
-ASE should treat the vLLM Semantic Router project as the primary upstream baseline for the full routing system, not merely as a source of semantic-routing ideas. The upstream project already defines a production-oriented envelope with Envoy as the traffic-management layer, a Go ExtProc service as the intelligence layer, canonical `providers/routing/global` configuration ownership, and a signal-driven routing pipeline. See [R4], [R5], [R6], [R7], and [R8].
+ASE should treat the vLLM Semantic Router project as the primary upstream baseline for the full routing system, not merely as a source of semantic-routing ideas. The upstream project already defines a production-oriented envelope with Envoy as the traffic-management layer, a Go ExtProc service as the intelligence layer, canonical `providers/routing/global` configuration ownership, and a signal-driven routing pipeline. See [R4], [R5], [R6], [R7], [R8], and [R9].
 
 Within ASE, that full upstream envelope is decomposed into separate design documents. This document focuses on the semantic-routing responsibilities inside that broader system, while gateway ingress, deployment shape, and downstream endpoint routing are specified in `architecture.md` and `load_balancing_module.md`.
 
-At the semantic-routing level, the upstream project presents routing as a signal-driven pipeline centered on four concerns: Signal Extraction, Decision Engine, Model Selection, and Plugin Chain. That semantic pipeline is the core responsibility specified here.
+At the semantic-routing level, the upstream project presents routing as a signal-driven pipeline centered on four concerns: Signal Extraction, Decision Engine, Model Selection, and Plugin Chain. That semantic pipeline is the core responsibility specified here. See [R5], [R8], and [R9].
 
 ASE preserves that structure, but makes the module boundary stricter:
 
@@ -153,35 +153,28 @@ This order is the core of the architecture and should not be inverted.
 
 ### Architecture diagram
 
-The diagram below is the normative architecture view for this module. It separates the northbound request path, the semantic-routing service, the configuration authorities that feed it, and the downstream contracts that it emits. That framing keeps the document aligned with the full vLLM Semantic Router deployment envelope while still making the ASE module boundary explicit.
+The diagram below is the normative architecture view for this module. It is intentionally organized into three planes: the policy and configuration plane, the request and decision plane, and the execution and dispatch plane. That separation follows the upstream vLLM Semantic Router architecture more closely and makes the ASE ownership boundary easier to review.
 
 ![Semantic Routing system design](diagrams/semantic-routing-system-design.svg)
 
 ### How to read the diagram
 
-Read the diagram from left to right.
+Read the diagram from top to bottom, and within each plane from left to right.
 
-1. `Northbound Request Path` is the full upstream ingress shell:
+1. `Policy / Configuration Plane` defines what the semantic service is allowed to know and decide:
+   - `routing` is the semantic DSL owned by this module and contains `modelCards`, `signals`, and `decisions`
+   - `providers` and `global` are required dependencies from the full upstream system, but they are not semantically owned by this module
+2. `Request / Decision Plane` shows the only request-time path:
    - client traffic enters through an OpenAI-compatible API boundary
    - Envoy or an equivalent AI gateway owns listeners, HTTP filters, timeout policy, and ExtProc invocation
-2. `Semantic Routing Service` is the document scope:
-   - `routing` is the semantic DSL owned by this module and contains `modelCards`, `signals`, and `decisions`
-   - `providers` is a required deployment catalog dependency, but it is not semantically owned by this module
-   - `global` provides shared runtime services such as observability, semantic cache, tools, and model-backed modules
-3. `Runtime Execution Order` is the authoritative semantic path:
-   - `1 Normalize Request`
-   - `2 Extract Signals`
-   - `3 Evaluate Decisions`
-   - `4 Select Logical Model`
-   - `5 Plugins + Handoff`
-4. `Ownership Boundary` states what the module does and does not own:
-   - it owns semantic policy, logical-model resolution, and route-scoped plugin behavior
-   - it does not own endpoint health, queue depth, retry state, or redispatch mechanics
-5. `Downstream Contracts` separate normative outputs from deployment realizations:
-   - the normative semantic output is the resolved logical model plus routing metadata
-   - upstream-compatible deployments may also project route headers or destination hints
-   - semantic rejection remains an explicit module-owned outcome
-   - split mode and integrated mode are both realizations of the same semantic decision
+   - inside the semantic routing service, the execution order is `Normalize Request -> Extract Signals -> Evaluate Decisions -> Select Logical Model -> Plugins + Handoff`
+   - the output of that path is an ExtProc decision response carrying request mutation, routing metadata, and dynamic metadata
+3. `Execution / Dispatch Plane` shows what can happen after semantic routing finishes:
+   - the normative output is the semantic contract used by ASE split mode, where downstream endpoint selection belongs to `load_balancing_module.md`
+   - upstream-compatible integrated deployments may additionally consume projected route headers or destination hints in Envoy
+   - semantic rejection remains a first-class module-owned outcome
+4. The invariant across all three planes is unchanged:
+   logical-model selection is the semantic source of truth, and endpoint selection remains a downstream concern.
 
 ### Architectural position and boundary
 
@@ -678,3 +671,5 @@ R6. vLLM Semantic Router system architecture documentation, https://vllm-semanti
 R7. `vllm-project/semantic-router` GitHub repository, https://github.com/vllm-project/semantic-router
 
 R8. vLLM Semantic Router Envoy ExtProc integration documentation, https://vllm-semantic-router.com/docs/overview/architecture/envoy-extproc
+
+R9. vLLM Semantic Router signal-driven decision documentation, https://vllm-semantic-router.com/docs/overview/signal-driven-decisions/
