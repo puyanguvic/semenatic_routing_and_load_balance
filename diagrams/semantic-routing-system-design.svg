@@ -119,20 +119,20 @@
     Configured Routing Surfaces
   </text>
   <text x="364" y="234" fill="#6366F1" font-family="Segoe UI, Arial, sans-serif" font-size="13">
-    ASE aligns to semantic-router's `routing.modelCards`, `routing.signals`, and `routing.decisions` while keeping provider backends downstream.
+    ASE aligns to semantic-router's signal extraction, decision engine, model selection, and plugin chain while keeping endpoint routing downstream.
   </text>
 
   <rect x="364" y="246" width="220" height="24" rx="12" fill="#EEF2FF" stroke="#C7D2FE"/>
   <text x="474" y="262" fill="#4338CA" font-family="Segoe UI, Arial, sans-serif" font-size="11" font-weight="700" text-anchor="middle">
-    ROUTING.MODELCARDS
+    MODEL METADATA
   </text>
   <rect x="610" y="246" width="220" height="24" rx="12" fill="#EEF2FF" stroke="#C7D2FE"/>
   <text x="720" y="262" fill="#4338CA" font-family="Segoe UI, Arial, sans-serif" font-size="11" font-weight="700" text-anchor="middle">
-    ROUTING.SIGNALS
+    SIGNAL DEFINITIONS
   </text>
   <rect x="856" y="246" width="220" height="24" rx="12" fill="#EEF2FF" stroke="#C7D2FE"/>
   <text x="966" y="262" fill="#4338CA" font-family="Segoe UI, Arial, sans-serif" font-size="11" font-weight="700" text-anchor="middle">
-    ROUTING.DECISIONS
+    ROUTING DECISIONS
   </text>
 
   <rect x="340" y="364" width="760" height="420" rx="24" fill="#FFFFFF" stroke="#BFDBFE" filter="url(#shadow)"/>

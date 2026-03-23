@@ -87,37 +87,68 @@ Those responsibilities belong to `load_balancing_module.md` or to broader ASE in
 Architecture overview
 =====================
 
-### Module summary
+### Alignment target
 
-The Semantic Routing Module is the authoritative logical-model-selection module in ASE. It receives a normalized request plus tenant, policy, and session context; evaluates that request against the routable logical-model universe; and produces an explicit logical-model decision that the downstream Load Balancing Module must honor.
+This module is intentionally aligned to the semantic core described in the vLLM Semantic Router project documentation rather than to its full deployment envelope. The official project presents semantic routing as a signal-driven pipeline centered on four concerns: Signal Extraction, Decision Engine, Model Selection, and Plugin Chain. See [R4] and [R5].
 
-The key property of the module is that it resolves a logical model, not an endpoint. In semantic-router terms, this module owns the signal-driven intelligence core: it extracts signals from the request, evaluates decision rules, selects among configured `modelRefs` using a model-selection algorithm, and runs per-decision plugins before handoff. Its value comes from making that decision explicit, policy-safe, and observable.
+ASE preserves that structure, but makes the module boundary stricter:
 
-### Role in the two-stage process
+- this document owns signal extraction, routing decisions, model selection, and per-decision plugin behavior
+- provider-facing deployment bindings and concrete backend resolution are intentionally outside this module
+- endpoint choice, health, retry, and redispatch belong to `load_balancing_module.md`
 
-ASE follows a `select -> route` process.
+This alignment matters because the Semantic Routing Module should read like a signal-driven decision engine, not like a gateway-plus-scheduler hybrid.
 
-- The Semantic Routing Module owns `signals -> decisions -> model selection -> plugins`.
-- The selected artifact is a logical model or logical-model alias carried in the normalized `model` field.
-- The downstream Load Balancing Module owns backend and endpoint routing for that already selected logical model.
+### Core processing logic
 
-This means the Semantic Routing Module is primarily a request-understanding and policy-matching module. In semantic-router-aligned terms, it covers the routing core rather than the full deployment envelope. Envoy or ExtProc-style ingress is a system-boundary choice, and provider `backend_refs` belong to the downstream Load Balancing Module. This document therefore aligns ASE with semantic-router's semantic core without collapsing load balancing back into this module.
+The Semantic Routing Module performs one job: convert a canonical request into an authoritative logical-model decision.
 
-### Module at a glance
+That decision is produced in a fixed order:
 
-The diagram below summarizes the Semantic Routing Module before the more detailed internal design diagram.
+1. Normalize the inbound request into a canonical routing context.
+2. Compute the typed signals needed for the current request.
+3. Evaluate `routing.decisions` in priority order.
+4. From the matched decision, build the legal candidate set from `modelRefs` plus hard capability and policy constraints.
+5. Run the configured selection algorithm to choose the final logical model.
+6. Run per-decision plugins and emit the handoff contract.
 
-![Semantic Routing module overview](diagrams/semantic-routing-module-overview.svg)
+This order is the core of the architecture and should not be inverted.
 
-### System design diagram
+- `signals` explain the request.
+- `decisions` determine which route is eligible.
+- `modelRefs` determine which logical models are legal inside that route.
+- `plugins` attach route-scoped post-decision behavior.
+- the final output is `model=<logical-model>` plus routing metadata, not a provider endpoint
 
-The diagram below shows the module in the same shape as semantic-router's signal-driven core: normalized requests feed configured signal extractors, priority-ordered decisions match routes, `modelRefs` are resolved through a model-selection layer, and plugins execute before the explicit handoff.
+### Architecture diagram
+
+The diagram below is the only architecture view used in this document. It is intentionally laid out in the same order as the vLLM Semantic Router routing path: inputs, configured routing surfaces, semantic routing core, outputs, and audit trail.
 
 ![Semantic Routing system design](diagrams/semantic-routing-system-design.svg)
 
-### Architectural position
+### How to read the diagram
 
-The Semantic Routing Module appears in the request path as follows:
+Read the diagram from left to right.
+
+1. `Routing Inputs` are the request-scoped inputs the router reasons over: request content, control metadata, identity and governance context, and session context.
+2. `Configured Routing Surfaces` are the declarative semantic policy owned by this module:
+   - model metadata and decision-level `modelRefs` define the legal logical-model candidate set.
+   - signal definitions define the typed detectors the router may compute.
+   - routing decisions define priority, rule structure, algorithms, and per-decision plugins.
+3. The numbered boxes in `Semantic Routing Core` are the execution order:
+   - `1 Request Normalizer` produces the canonical routing object.
+   - `2 Signal Extraction Layer` computes typed routing evidence.
+   - `3 Decision Engine` matches the winning semantic decision.
+   - `4 Model Selection Layer` selects one logical model from the matched decision's `modelRefs`.
+   - `5 Plugin Chain` applies route-scoped post-decision processing.
+4. `Outputs and Outcomes` are the only valid module results:
+   - success: an enriched request carrying `model=<logical-model>`
+   - rejection: an explicit semantic failure owned by this module
+5. `Routing Trace, Reason Codes, and Audit Record` indicates that every stage must leave structured evidence for explainability and audit.
+
+### Architectural position and boundary
+
+In the ASE request path, the module sits here:
 
 `Client Request -> Semantic Routing Module -> Request Enrichment (logical model in model field) -> Load Balancing Module`
 
@@ -127,6 +158,13 @@ Its contract is:
 - output: request enriched with the resolved logical model in `model` and routing metadata
 
 That contract is normative. The Semantic Routing Module may decide what logical model the request should use, but it may not decide where that logical model runs.
+
+To stay aligned with the vLLM Semantic Router project while preserving ASE's stronger module split, the boundary should be interpreted as follows:
+
+- this module owns semantic interpretation and logical-model selection
+- this module may attach tags, rationale, and plugin outputs that constrain downstream dispatch
+- this module must not use endpoint health, queue depth, or retry state to choose the logical model
+- this module must not resolve preferred endpoints, providers, or concrete serving endpoints
 
 ### Architectural invariants
 
@@ -140,7 +178,7 @@ The following invariants are mandatory for this module.
 
 ### Internal architecture
 
-The semantic-router-aligned core is organized as four routing layers, preceded by request normalization and followed by an explicit handoff contract.
+The semantic-router-aligned core is organized as a linear pipeline built around one declarative routing surface and one explicit handoff contract.
 
 | Component | Primary responsibility | Architectural output |
 | --- | --- | --- |
@@ -267,7 +305,11 @@ These controls are part of the module's core purpose because they determine whet
 Model Selection Layer
 =====================
 
-The semantic-router reference design separates provider-facing model definitions from route-facing model cards. `providers.models` describes executable provider models and backend-facing identifiers, while `routing.modelCards` captures the route-visible capability envelope used during semantic decision making. In ASE, that split maps cleanly onto the module boundary: this document owns the model-card view, while provider and backend resolution belong to `load_balancing_module.md`.
+The current vLLM Semantic Router canonical contract makes the ownership boundary explicit. `routing` owns semantic routing semantics, while `providers` owns deployment bindings and execution-facing model metadata. Concretely, `routing.modelCards` and `routing.decisions[*].modelRefs` are part of the semantic routing surface, while `providers.models[*]` owns `provider_model_id`, `backend_refs`, pricing, and other deployment-facing fields. See [R5].
+
+ASE should preserve that split. This document therefore owns the route-visible model view, not the provider-binding view. The Semantic Routing Module reasons over model capabilities, constraints, route rules, `modelRefs`, reasoning options, and optional LoRA choices. It does not own backend addresses, endpoint bindings, or provider failover state.
+
+At the system level, the model names used by `routing.modelCards` and by `routing.decisions[*].modelRefs[*].model` must resolve consistently against the provider-defined model catalog. That cross-reference is required for the overall router to work, but the semantic decision itself should remain driven by the `routing` subtree.
 
 Each routable logical-model entry should expose, at minimum:
 
@@ -275,11 +317,11 @@ Each routable logical-model entry should expose, at minimum:
 - human-readable description and routing tags
 - supported capabilities and modalities
 - context-window size
-- quality, latency, and cost attributes or an equivalent quality score
-- reasoning and optional LoRA variants that may appear in `modelRefs`
+- optional quality, latency, and cost attributes or an equivalent quality score
+- reasoning and optional LoRA variants that may appear in `modelRefs` or `routing.modelCards[].loras`
 - governance, authz, and tenant constraints
 
-The registry should be declarative and versioned. Adding a new logical model should usually mean changing model cards and routing decisions, not changing routing code.
+The registry should be declarative and versioned. Adding or changing routing behavior should usually mean changing `routing.modelCards`, `routing.decisions`, or their referenced algorithm and plugin fragments, not changing routing code.
 
 Reasoning budget is a routing concern because reasoning-oriented logical models may consume substantially more tokens, wall-clock time, and infrastructure resources than lightweight logical models. The module should therefore estimate, when useful:
 
@@ -375,34 +417,49 @@ Configuration
 
 The module should be configured declaratively rather than through code changes. This is necessary both for operational agility and for policy reviewability.
 
-The configuration surface should at least cover:
+The current vLLM Semantic Router canonical YAML contract is:
 
-- provider-model catalog and defaults
-- routing model cards
-- routing signal definitions
-- routing decisions with `priority`, `rules`, `modelRefs`, `algorithm`, and `plugins`
-- northbound routing extension policy
-- session continuity policy
-- debug verbosity and trace controls
+```yaml
+version:
+listeners:
+providers:
+routing:
+global:
+```
+
+For this module, the important point is ownership:
+
+- `routing` is the semantic-routing-owned surface
+- `providers` is a required system dependency, but it is not owned by this module
+- `global` contains sparse router-wide runtime overrides and is also not owned by this module
+
+This document therefore specifies the `routing` subtree in detail and references `providers` only where model-name consistency matters.
 
 Notation
 --------
 
 ASE uses declarative YAML or JSON configuration for semantic routing. The XML-specific notation in the generic template does not apply to this module.
 
-semantic_routing
+canonical-config
 ----------------
 
 | Element | Possible values | Description |
 | --- | --- | --- |
-| `semantic_routing:` | object | Top-level Semantic Routing Module configuration |
-| `  providers:` | object | Provider-model catalog and default logical-model bindings |
-| `  routing:` | object | Semantic-router-aligned routing policy subtree |
-| `    modelCards:` | list | Route-visible logical-model capability definitions |
-| `    signals:` | object | Typed signal detector configuration |
-| `    decisions:` | list | Priority-ordered route rules and candidate `modelRefs` |
-| `  session_policy:` | object | Continuity, escalation, and downgrade rules |
-| `  debug_policy:` | object | Explainability visibility and trace redaction controls |
+| `version:` | string | Canonical schema version. In current vLLM Semantic Router documentation this is `v0.3`. |
+| `listeners:` | list | Router listener and timeout configuration. Outside this module's ownership. |
+| `providers:` | object | Deployment bindings, provider defaults, and executable model metadata. Required by the full router, but outside this module's ownership. |
+| `routing:` | object | Semantic-routing-owned DSL surface described by this document. |
+| `global:` | object | Sparse router-wide runtime overrides. Outside this module's ownership. |
+
+routing
+-------
+
+| Element | Possible values | Description |
+| --- | --- | --- |
+| `routing.modelCards:` | list | Route-visible logical-model capability definitions owned by semantic routing |
+| `routing.modelCards[].loras:` | list | Optional LoRA choices that may be selected from semantic decisions |
+| `routing.signals:` | object | Typed signal detector configuration |
+| `routing.decisions:` | list | Priority-ordered route rules, `modelRefs`, algorithms, and plugins |
 
 routing.decisions
 -----------------
@@ -416,77 +473,93 @@ routing.decisions
 | `algorithm` | object | Model-selection strategy applied inside the matched route |
 | `plugins` | list | Post-selection plugins such as audit, safety, tracing, or prompt augmentation |
 
-An illustrative logical configuration is shown below.
+An illustrative canonical configuration excerpt is shown below. It keeps the full top-level contract visible, but only the `routing` subtree is semantically owned by this module.
 
 ```yaml
-semantic_routing:
-  providers:
-    defaults:
-      default_model: general-small
-    models:
-      - name: general-small
-        provider_model_id: general-small
-      - name: code-large
-        provider_model_id: code-large
-  routing:
-    modelCards:
-      - name: general-small
-        description: Fast default text model.
-        capabilities: [chat, tools]
-        context_window_size: 32000
-        quality_score: 0.82
-        tags: [default, fast]
-      - name: code-large
-        description: Higher-quality reasoning model for software design.
-        capabilities: [chat, reasoning, long-context]
-        context_window_size: 128000
-        quality_score: 0.95
-        tags: [premium, analysis]
-    signals:
-      domains:
-        - name: "computer science"
-          description: Computer science and engineering prompts.
-      complexity:
-        - name: needs_reasoning
-          threshold: 0.75
-          description: Multi-step synthesis or design-heavy prompts.
-      context:
-        - name: long_context
-          min_tokens: 32K
-          max_tokens: 256K
-    decisions:
-      - name: computer_science_reasoning
-        priority: 170
-        rules:
-          operator: AND
-          conditions:
-            - type: domain
-              name: "computer science"
-            - type: complexity
-              name: needs_reasoning
-        modelRefs:
-          - model: general-small
-            use_reasoning: true
-            weight: 0.2
-          - model: code-large
-            use_reasoning: true
-            reasoning_effort: high
-            weight: 0.8
-        algorithm:
-          type: latency_aware
-        plugins:
-          - type: system_prompt
-            configuration:
-              enabled: true
-              mode: insert
-              system_prompt: You are a senior software architect.
-  session_policy:
-    preserve_previous_logical_model: true
-    allow_escalation: true
-    allow_downgrade: conservative
+version: v0.3
+
+listeners:
+  - name: http-8899
+    address: 0.0.0.0
+    port: 8899
+    timeout: 300s
+
+providers:
+  defaults:
+    default_model: general-small
+    default_reasoning_effort: medium
+  models:
+    - name: general-small
+      provider_model_id: general-small
+      backend_refs:
+        - name: primary
+          endpoint: llm-gateway.internal:8000
+          protocol: http
+    - name: code-large
+      provider_model_id: code-large
+      backend_refs:
+        - name: primary
+          endpoint: code-gateway.internal:8000
+          protocol: http
+
+routing:
+  modelCards:
+    - name: general-small
+      modality: text
+      capabilities: [chat, tools]
+      loras:
+        - name: concise-adapter
+          description: Adapter for terse instruction following.
+    - name: code-large
+      modality: text
+      capabilities: [chat, reasoning, long-context]
+      loras:
+        - name: code-review-adapter
+          description: Adapter for code review and design prompts.
+  signals:
+    keywords:
+      - name: code_terms
+        operator: OR
+        keywords: ["code", "api", "debug", "refactor"]
+    complexity:
+      - name: needs_reasoning
+        threshold: 0.75
+        description: Multi-step synthesis or design-heavy prompts.
+  decisions:
+    - name: computer_science_reasoning
+      description: Route software engineering requests to reasoning-capable models.
+      priority: 170
+      rules:
+        operator: AND
+        conditions:
+          - type: keyword
+            name: code_terms
+          - type: complexity
+            name: needs_reasoning
+      modelRefs:
+        - model: general-small
+          use_reasoning: false
+          weight: 0.2
+        - model: code-large
+          use_reasoning: true
+          reasoning_effort: high
+          lora_name: code-review-adapter
+          weight: 0.8
+      algorithm:
+        type: latency_aware
+      plugins:
+        - type: system_prompt
+          configuration:
+            enabled: true
+            mode: insert
+            system_prompt: You are a senior software architect.
+
+global:
+  router:
+    config_source: file
 ```
 
-The exact DSL is implementation-specific. The architectural requirement is that routing policy remain declarative, reviewable, and versioned. In ASE, provider `backend_refs`, endpoint weights, and execution failover are intentionally omitted from this module configuration because they belong to the Load Balancing Module, not to semantic routing.
+The architectural requirement is that semantic routing remain declarative, reviewable, and versioned under the canonical `routing` surface. Provider `backend_refs`, endpoint weights, and execution failover remain outside this module's ownership even though they exist in the full router configuration under `providers` or downstream execution systems.
 
 Testing
 =======
@@ -513,7 +586,7 @@ The work should be broken down into mergeable tasks that preserve a working rout
 | --- | --- | --- |
 | Implement request normalization and routing-context assembly | 4 days | |
 | Implement typed signal extraction and decision-rule evaluation | 1 week | |
-| Implement model-card registry and model-selection algorithms | 1 week | |
+| Implement `routing.modelCards` and model-selection algorithms | 1 week | |
 | Implement plugin execution, output contract, and audit trace | 4 days | |
 | Add semantic-routing test coverage and policy regression validation | 3 days | |
 
@@ -525,9 +598,9 @@ Add the canonical request shape, override precedence handling, and session-conte
 
 Implement configured signal detectors and priority-ordered decision matching with explicit hard-constraint and policy filtering.
 
-## Implement model-card registry and model-selection algorithms
+## Implement routing.modelCards and model-selection algorithms
 
-Implement declarative logical-model metadata plus the bounded selectors used to choose among candidate `modelRefs`.
+Implement declarative `routing.modelCards` metadata plus the bounded selectors used to choose among candidate `modelRefs`.
 
 ## Implement plugin execution, output contract, and audit trace
 
@@ -548,4 +621,4 @@ R3. vLLM Semantic Router: Signal Driven Decision Routing for Mixture-of-Modality
 
 R4. vLLM Semantic Router documentation, https://vllm-semantic-router.com/docs/intro/
 
-R5. `vllm-project/semantic-router` reference configuration, https://raw.githubusercontent.com/vllm-project/semantic-router/main/config/config.yaml
+R5. vLLM Semantic Router configuration documentation, https://vllm-semantic-router.com/docs/installation/configuration/
