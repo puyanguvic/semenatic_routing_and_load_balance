@@ -35,8 +35,6 @@ The problems in current LLM routers are:
 
 ASE works as an important component of security gateway between internal network and external network, it mostly works as a web proxy and naturely can serve as a LLM semantic router and load balancer. There is some key competitive differentiations that ASE can provide more advanced security features on the LLM request and response traffics.
 
-What's more, currently there are no mature LLM load balancers in the market，and no unified LLM endpoint interfaces of capabilities, metrics and KV events used in LLM load balancer algorithms, so it's a good product opportunity.  
-
 ## Scope
 
 The first development stage will support HTTP/2 Restful APIs, HTTP/1.1 and gRPC not planned in this stage.
