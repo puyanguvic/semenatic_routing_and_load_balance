@@ -22,7 +22,7 @@ So high performance LLM load balancer tends to use means of LLM engine-aware to 
 
 There are some open-sourced, partially open-sourced and commercial LLM routers exist in the market like open-sourced vLLM semantic router, semantic-router and RouteLLM；Partially open-sourced Kong AI Gateway; commercial Cloudflare AI Gateway.
 
-The ASE LLM load balancer, together with ASE semantic LLM router is designed to address the core problems that exist in AI inference network, and to provide cost-efficient, secure, resilient and performance-aware of inference workloads across LLM servers.
+The ASE LLM load balancer, together with ASE semantic LLM router is designed to address the core problems that exist in AI inference network, and to provide cost-efficient, secure, resilient and high-performance of inference workloads across LLM servers.
 
 ## Background
 
@@ -30,7 +30,7 @@ The problems in current LLM routers are:
 
 - Semantic router enhancements based on current API gateways like Kong AI Gateway and Cloudflare AI Gateway，not natively designed as semantic router, use policy/rules and plugins to do partially semantic router enhancements. 
 - Designed and focused on semantic router model selection, no load balancer function like semantic-router and RouteLLM.
-- Designed as semantic router and works as a plugin in web proxy (e.g. Envoy ) for  like vLLM semantic router. load balancer function mostly depends on web proxy L4/L7 load balancer with limited LLM-aware scheduler.
+- Designed as semantic router and works as a plugin in web proxy (e.g. Envoy)like vLLM semantic router. load balancer function mostly depends on web proxy L4/L7 load balancer with limited LLM-aware scheduler.
 - vLLM production stack, llm-d and nvidia Dynamo add a load balancer and resource scheduler layer over LLM engines, generally used in a Kubernetes-native cluster, and function as engine-aware scheduler to achieve better peformance. The problem is all the three can onlys support limited vendors of LLM engines because of compatibility of metrics/KV event of different LLM engine vendors.
 
 ASE works as an important component of security gateway between internal network and external network, it mostly works as a web proxy and naturely can serve as a LLM semantic router and load balancer. There is some key competitive differentiations that ASE can provide more advanced security features on the LLM request and response traffics.
