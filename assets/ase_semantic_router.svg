@@ -1,23 +1,13 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.0//EN" "http://www.w3.org/TR/2001/PR-SVG-20010719/DTD/svg10.dtd">
-<svg width="70cm" height="31cm" viewBox="0 0 1400 620" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <marker id="arrowBlue" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">
-      <path d="M0,0 L10,5 L0,10 Z" style="fill:#0000ff"/>
-    </marker>
-    <marker id="arrowPurple" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">
-      <path d="M0,0 L10,5 L0,10 Z" style="fill:#a020f0"/>
-    </marker>
-    <marker id="arrowBlack" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">
-      <path d="M0,0 L10,5 L0,10 Z" style="fill:#000000"/>
-    </marker>
-  </defs>
+<svg width="72cm" height="34cm" viewBox="0 0 1460 660" xmlns="http://www.w3.org/2000/svg">
 
   <rect style="fill:#ffffff;stroke:#000000;stroke-width:2" x="180" y="80" width="900" height="430"/>
   <text x="630" y="112" style="fill:#000000;font-size:18px;text-anchor:middle;font-family:sans-serif">ASE Semantic Router</text>
 
-  <rect style="fill:#ffffff;stroke:#000000;stroke-width:2;stroke-dasharray:6 4" x="250" y="140" width="520" height="44"/>
-  <text x="510" y="168" style="fill:#000000;font-size:15px;text-anchor:middle;font-family:sans-serif">Routing / Policy Config: modelCards, signals, decisions</text>
+  <rect style="fill:#ffffff;stroke:#000000;stroke-width:2;stroke-dasharray:6 4" x="250" y="140" width="520" height="56"/>
+  <text x="510" y="163" style="fill:#000000;font-size:15px;text-anchor:middle;font-family:sans-serif">Routing / Policy Config</text>
+  <text x="510" y="182" style="fill:#000000;font-size:14px;text-anchor:middle;font-family:sans-serif">modelCards, signals, decisions</text>
 
   <rect style="fill:#ffffff;stroke:#000000;stroke-width:2" x="250" y="235" width="150" height="54"/>
   <text x="325" y="268" style="fill:#000000;font-size:14px;text-anchor:middle;font-family:sans-serif">Request Normalize</text>
@@ -35,19 +25,28 @@
   <text x="630" y="365" style="fill:#000000;font-size:14px;text-anchor:middle;font-family:sans-serif">Plugin / RouteDecision</text>
   <text x="630" y="385" style="fill:#000000;font-size:13px;text-anchor:middle;font-family:sans-serif">target_pool + metadata + trace</text>
 
-  <rect style="fill:#ffffff;stroke:#000000;stroke-width:2;stroke-dasharray:6 4" x="300" y="435" width="470" height="48"/>
-  <text x="535" y="464" style="fill:#000000;font-size:14px;text-anchor:middle;font-family:sans-serif">Session / Policy Tags / Audit Trace / Semantic Cache Hooks</text>
+  <rect style="fill:#ffffff;stroke:#000000;stroke-width:2;stroke-dasharray:6 4" x="300" y="435" width="470" height="58"/>
+  <text x="535" y="459" style="fill:#000000;font-size:14px;text-anchor:middle;font-family:sans-serif">Session / Policy Tags / Audit Trace</text>
+  <text x="535" y="478" style="fill:#000000;font-size:14px;text-anchor:middle;font-family:sans-serif">Semantic Cache Hooks</text>
 
-  <line x1="325" y1="184" x2="325" y2="225" style="stroke:#000000;stroke-width:2" marker-end="url(#arrowBlack)"/>
-  <line x1="505" y1="184" x2="505" y2="225" style="stroke:#000000;stroke-width:2" marker-end="url(#arrowBlack)"/>
-  <line x1="685" y1="184" x2="685" y2="225" style="stroke:#000000;stroke-width:2" marker-end="url(#arrowBlack)"/>
+  <line x1="325" y1="196" x2="325" y2="225" style="stroke:#000000;stroke-width:2"/>
+  <line x1="505" y1="196" x2="505" y2="225" style="stroke:#000000;stroke-width:2"/>
+  <line x1="685" y1="196" x2="685" y2="225" style="stroke:#000000;stroke-width:2"/>
+  <polygon points="325,225 320,215 330,215" style="fill:#000000"/>
+  <polygon points="505,225 500,215 510,215" style="fill:#000000"/>
+  <polygon points="685,225 680,215 690,215" style="fill:#000000"/>
 
-  <line x1="400" y1="262" x2="430" y2="262" style="stroke:#000000;stroke-width:2" marker-end="url(#arrowBlack)"/>
-  <line x1="580" y1="262" x2="610" y2="262" style="stroke:#000000;stroke-width:2" marker-end="url(#arrowBlack)"/>
-  <line x1="760" y1="262" x2="790" y2="262" style="stroke:#000000;stroke-width:2" marker-end="url(#arrowBlack)"/>
-  <line x1="865" y1="289" x2="865" y2="320" style="stroke:#000000;stroke-width:2" marker-end="url(#arrowBlack)"/>
+  <line x1="400" y1="262" x2="430" y2="262" style="stroke:#000000;stroke-width:2"/>
+  <line x1="580" y1="262" x2="610" y2="262" style="stroke:#000000;stroke-width:2"/>
+  <line x1="760" y1="262" x2="790" y2="262" style="stroke:#000000;stroke-width:2"/>
+  <line x1="865" y1="289" x2="865" y2="320" style="stroke:#000000;stroke-width:2"/>
   <line x1="865" y1="320" x2="740" y2="320" style="stroke:#000000;stroke-width:2"/>
-  <line x1="740" y1="320" x2="740" y2="340" style="stroke:#000000;stroke-width:2" marker-end="url(#arrowBlack)"/>
+  <line x1="740" y1="320" x2="740" y2="340" style="stroke:#000000;stroke-width:2"/>
+  <polygon points="430,262 420,257 420,267" style="fill:#000000"/>
+  <polygon points="610,262 600,257 600,267" style="fill:#000000"/>
+  <polygon points="790,262 780,257 780,267" style="fill:#000000"/>
+  <polygon points="865,320 860,310 870,310" style="fill:#000000"/>
+  <polygon points="740,340 735,330 745,330" style="fill:#000000"/>
 
   <rect style="fill:#ffffff;stroke:#000000;stroke-width:2" x="108" y="238" width="72" height="48"/>
   <text x="144" y="267" style="fill:#000000;font-size:14px;text-anchor:middle;font-family:sans-serif">Listener</text>
@@ -59,39 +58,52 @@
   <line x1="48" y1="290" x2="70" y2="315" style="stroke:#000000;stroke-width:2"/>
   <text x="48" y="345" style="fill:#000000;font-size:14px;text-anchor:middle;font-family:sans-serif">LLM User</text>
 
-  <line x1="78" y1="262" x2="108" y2="262" style="stroke:#0000ff;stroke-width:2" marker-end="url(#arrowBlue)"/>
-  <line x1="180" y1="262" x2="250" y2="262" style="stroke:#0000ff;stroke-width:2" marker-end="url(#arrowBlue)"/>
+  <line x1="78" y1="262" x2="108" y2="262" style="stroke:#0000ff;stroke-width:2"/>
+  <line x1="180" y1="262" x2="250" y2="262" style="stroke:#0000ff;stroke-width:2"/>
+  <polygon points="108,262 98,257 98,267" style="fill:#0000ff"/>
+  <polygon points="250,262 240,257 240,267" style="fill:#0000ff"/>
 
-  <text x="92" y="244" style="fill:#000000;font-size:13px;text-anchor:start;font-family:sans-serif">LLM Request</text>
+  <text x="92" y="230" style="fill:#000000;font-size:13px;text-anchor:start;font-family:sans-serif">LLM Request</text>
 
   <rect style="fill:#ffffff;stroke:#000000;stroke-width:2" x="1110" y="235" width="180" height="60"/>
   <text x="1200" y="260" style="fill:#000000;font-size:14px;text-anchor:middle;font-family:sans-serif">ASE LLM Load Balancer</text>
   <text x="1200" y="280" style="fill:#000000;font-size:13px;text-anchor:middle;font-family:sans-serif">replica selection</text>
 
-  <line x1="740" y1="369" x2="1110" y2="265" style="stroke:#0000ff;stroke-width:2" marker-end="url(#arrowBlue)"/>
-  <text x="900" y="330" style="fill:#000000;font-size:13px;text-anchor:start;font-family:sans-serif">RouteDecision: target_pool</text>
+  <line x1="740" y1="369" x2="1110" y2="265" style="stroke:#0000ff;stroke-width:2"/>
+  <polygon points="1110,265 1099,263 1102,273" style="fill:#0000ff"/>
+  <text x="880" y="348" style="fill:#000000;font-size:13px;text-anchor:start;font-family:sans-serif">RouteDecision: target_pool</text>
 
-  <rect style="fill:#ffffff;stroke:#000000;stroke-width:2" x="1310" y="170" width="72" height="200"/>
-  <text x="1346" y="156" style="fill:#000000;font-size:14px;text-anchor:middle;font-family:sans-serif">Model Pool</text>
+  <rect style="fill:#ffffff;stroke:#000000;stroke-width:2" x="1298" y="170" width="92" height="210"/>
+  <text x="1344" y="194" style="fill:#000000;font-size:14px;text-anchor:middle;font-family:sans-serif">Model Pool</text>
 
-  <rect style="fill:#ffffff;stroke:#000000;stroke-width:2" x="1320" y="185" width="52" height="34"/>
-  <text x="1346" y="206" style="fill:#000000;font-size:12px;text-anchor:middle;font-family:sans-serif">vLLM</text>
+  <rect style="fill:#ffffff;stroke:#000000;stroke-width:2" x="1310" y="215" width="68" height="34"/>
+  <text x="1344" y="236" style="fill:#000000;font-size:12px;text-anchor:middle;font-family:sans-serif">vLLM</text>
 
-  <rect style="fill:#ffffff;stroke:#000000;stroke-width:2" x="1320" y="245" width="52" height="34"/>
-  <text x="1346" y="266" style="fill:#000000;font-size:12px;text-anchor:middle;font-family:sans-serif">vLLM</text>
+  <rect style="fill:#ffffff;stroke:#000000;stroke-width:2" x="1310" y="275" width="68" height="34"/>
+  <text x="1344" y="296" style="fill:#000000;font-size:12px;text-anchor:middle;font-family:sans-serif">vLLM</text>
 
-  <rect style="fill:#ffffff;stroke:#000000;stroke-width:2" x="1320" y="305" width="52" height="34"/>
-  <text x="1346" y="326" style="fill:#000000;font-size:12px;text-anchor:middle;font-family:sans-serif">vLLM</text>
+  <rect style="fill:#ffffff;stroke:#000000;stroke-width:2" x="1310" y="335" width="68" height="34"/>
+  <text x="1344" y="356" style="fill:#000000;font-size:12px;text-anchor:middle;font-family:sans-serif">vLLM</text>
 
-  <text x="1346" y="356" style="fill:#000000;font-size:16px;text-anchor:middle;font-family:sans-serif">...</text>
+  <text x="1344" y="370" style="fill:#000000;font-size:16px;text-anchor:middle;font-family:sans-serif">...</text>
 
-  <line x1="1290" y1="265" x2="1310" y2="265" style="stroke:#0000ff;stroke-width:2" marker-end="url(#arrowBlue)"/>
+  <line x1="1290" y1="265" x2="1298" y2="265" style="stroke:#0000ff;stroke-width:2"/>
+  <polygon points="1298,265 1288,260 1288,270" style="fill:#0000ff"/>
 
-  <line x1="1310" y1="395" x2="1110" y2="395" style="stroke:#a020f0;stroke-width:2" marker-end="url(#arrowPurple)"/>
-  <line x1="1110" y1="395" x2="740" y2="395" style="stroke:#a020f0;stroke-width:2" marker-end="url(#arrowPurple)"/>
-  <line x1="520" y1="470" x2="180" y2="470" style="stroke:#a020f0;stroke-width:2" marker-end="url(#arrowPurple)"/>
-  <line x1="180" y1="470" x2="180" y2="300" style="stroke:#a020f0;stroke-width:2"/>
-  <line x1="108" y1="300" x2="78" y2="300" style="stroke:#a020f0;stroke-width:2" marker-end="url(#arrowPurple)"/>
+  <line x1="1298" y1="370" x2="1298" y2="395" style="stroke:#a020f0;stroke-width:2"/>
+  <line x1="1298" y1="395" x2="1110" y2="395" style="stroke:#a020f0;stroke-width:2"/>
+  <line x1="1110" y1="295" x2="1110" y2="395" style="stroke:#a020f0;stroke-width:2"/>
+  <line x1="1110" y1="395" x2="800" y2="395" style="stroke:#a020f0;stroke-width:2"/>
+  <line x1="800" y1="395" x2="800" y2="464" style="stroke:#a020f0;stroke-width:2"/>
+  <line x1="800" y1="464" x2="770" y2="464" style="stroke:#a020f0;stroke-width:2"/>
+  <line x1="300" y1="464" x2="180" y2="464" style="stroke:#a020f0;stroke-width:2"/>
+  <line x1="180" y1="464" x2="180" y2="300" style="stroke:#a020f0;stroke-width:2"/>
+  <line x1="180" y1="300" x2="108" y2="300" style="stroke:#a020f0;stroke-width:2"/>
+  <line x1="108" y1="300" x2="78" y2="300" style="stroke:#a020f0;stroke-width:2"/>
+  <polygon points="1110,395 1120,390 1120,400" style="fill:#a020f0"/>
+  <polygon points="770,464 780,459 780,469" style="fill:#a020f0"/>
+  <polygon points="180,464 190,459 190,469" style="fill:#a020f0"/>
+  <polygon points="78,300 88,295 88,305" style="fill:#a020f0"/>
 
   <text x="1140" y="378" style="fill:#000000;font-size:13px;text-anchor:start;font-family:sans-serif">LLM Response</text>
 </svg>
