@@ -60,10 +60,10 @@ flowchart TD
 
     C -- No --> R1[Reject Response]
 
-    C -- Yes --> SC{Cache Hit?}
+    C -- Yes --> SC{Semantic Cache Hit?}
     SC -- Yes --> F[Return Response]
 
-    SC -- No --> SEC{Security Check}
+    SC -- No --> SEC{Security Check 1}
     SEC -- No --> G[Security Alert Response]
 
     SEC -- Yes --> SR{Semantic Router}
@@ -84,7 +84,7 @@ flowchart TD
 
     B -- No --> DROP[Drop]
 
-    B -- Yes --> C{Security Check}
+    B -- Yes --> C{Security Check 2}
     C -- Fail --> ALERT[Security Alert]
 
     C -- Pass --> D[Add Semantic Cache]
