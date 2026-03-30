@@ -1,12 +1,8 @@
 # ASE Semantic Router
 
-## Abstract
-
-This document defines the architectural boundary, data model, interface contract, and initial scope of ASE Semantic Router. The semantic router selects a legal capability path and target pool for each LLM request according to request meaning, capability constraints, governance policy, and session context, then emits a `RouteDecision` contract for ASE LLM Load Balancer. The document also defines the separation between semantic route selection and endpoint-level scheduling so that routing remains policy-aware, explainable, and operationally auditable.
-
 ## Introduction
 
-In the ASE inference network, semantic routing and load balancing are separate control-plane decisions. Semantic routing determines which capability path, model family, or target pool is eligible to serve a request according to request meaning, declared constraints, and governance policy. Load balancing determines which healthy backend endpoint inside that selected pool should execute the request. The semantic router therefore operates on normalized request context rather than on transport metadata alone, and it MUST produce a route decision that remains explainable to operators and auditable by policy systems.
+In the inference network, semantic routing and load balancing are separate control-plane decisions. Semantic routing determines which capability path, model family, or target pool is eligible to serve a request according to request meaning, declared constraints, and governance policy. Load balancing determines which healthy backend endpoint inside that selected pool should execute the request. The semantic router therefore operates on normalized request context rather than on transport metadata alone, and it MUST produce a route decision that remains explainable to operators and auditable by policy systems.
 
 Traditional API routing and static model pinning are insufficient for this workload. LLM requests frequently encode capability requirements implicitly in prompt content, may require different modalities or reasoning depth, and may be constrained by tenant, privacy, or compliance rules before any model invocation is allowed. If capability-path selection and backend instance scheduling are mixed together, the system loses ownership boundaries, weakens debuggability, and makes policy review harder. ASE Semantic Router addresses this by selecting a legal route class and target pool first, then handing an enriched request and a stable `RouteDecision` contract to ASE LLM Load Balancer for endpoint scheduling.
 
@@ -15,8 +11,6 @@ This design is informed by both open-source and commercial routing systems, incl
 ## Background
 
 Current LLM routing products often extend traditional API gateways with prompt classification or provider-selection logic, but they do not consistently model semantic routing as a first-class request pipeline for capability-path and pool selection. In many implementations, semantic interpretation, policy enforcement, and backend dispatch are interleaved, which makes it difficult to explain why a request was assigned to a given model family or service pool. This is operationally problematic because capability matching, context-window validation, modality support, tenant restrictions, and auditability requirements all belong to the route-selection stage rather than to replica scheduling.
-
-ASE already operates at an important boundary between internal and external networks and can therefore combine semantic routing with identity, policy, audit, jailbreak inspection, and PII control before any backend LLM endpoint is reached. That position makes ASE a natural enforcement point for a dedicated semantic-routing stage. To preserve clarity of ownership and ease future evolution, ASE Semantic Router and ASE LLM Load Balancer MUST remain separate stages: the former selects the capability pool or service pool that is allowed to serve the request, and the latter selects the concrete backend endpoint or replica within that pool. Runtime endpoint health, queue depth, retry state, and connection-pool statistics remain important to load balancing, but they MUST NOT redefine semantic pool selection; otherwise the system loses explainability, weakens failure isolation, and makes independent evolution of semantic policy and scheduling logic unnecessarily difficult.
 
 ## Conventions and Terminology
 
