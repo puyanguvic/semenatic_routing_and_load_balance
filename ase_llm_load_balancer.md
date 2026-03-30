@@ -487,4 +487,21 @@ References
 ==========
 
 [1] vLLM v1 LLM Engine Metrics https://docs.vllm.ai/en/v0.8.5/design/v1/metrics.html
+
 [2] Envoy Load Balancing Overview https://docs.vllm.ai/en/v0.8.5/design/v1/metrics.html
+
+[3] llm-d architecture https://llm-d.ai/docs/architecture
+
+[4] nvidia dynamo architecture https://docs.nvidia.com/dynamo/v-0-8-0/design-docs/overall-architecture
+
+[5] vLLM Production Statck Request Stats https://docs.vllm.ai/projects/production-stack/en/vllm-stack-0.1.3/dev_guide/dev_api/request-stats.html
+
+[6] vLLM metrics https://docs.vllm.ai/en/stable/design/metrics.html
+
+[7] SGLang metrics https://docs.sglang.ai/references/production_metrics.html
+
+[8] TGI metrics https://huggingface.co/docs/text-generation-inference/main/en/reference/metrics
+
+[9] ollama metrics https://github.com/ollama/ollama/blob/main/docs/api/usage.mdx and https://github.com/ollama/ollama/blob/main/docs/api.md#list-running-models
+
+
