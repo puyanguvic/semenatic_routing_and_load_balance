@@ -124,16 +124,16 @@
   <polygon points="1550,530 1540,525 1540,535" style="fill:#0000ff"/>
 
   <rect style="fill:#ffffff;stroke:#000000;stroke-width:2" x="1550" y="300" width="150" height="250"/>
-  <text x="1625" y="326" style="fill:#000000;font-size:14px;text-anchor:middle;font-family:sans-serif">Model Pool</text>
+  <text x="1625" y="326" style="fill:#000000;font-size:14px;text-anchor:middle;font-family:sans-serif">End Points</text>
 
   <rect style="fill:#ffffff;stroke:#000000;stroke-width:2" x="1574" y="356" width="102" height="36"/>
-  <text x="1625" y="379" style="fill:#000000;font-size:12px;text-anchor:middle;font-family:sans-serif">vLLM</text>
+  <text x="1625" y="379" style="fill:#000000;font-size:12px;text-anchor:middle;font-family:sans-serif">LLM Server</text>
 
   <rect style="fill:#ffffff;stroke:#000000;stroke-width:2" x="1574" y="418" width="102" height="36"/>
-  <text x="1625" y="441" style="fill:#000000;font-size:12px;text-anchor:middle;font-family:sans-serif">vLLM</text>
+  <text x="1625" y="441" style="fill:#000000;font-size:12px;text-anchor:middle;font-family:sans-serif">LLM Server</text>
 
   <rect style="fill:#ffffff;stroke:#000000;stroke-width:2" x="1574" y="480" width="102" height="36"/>
-  <text x="1625" y="503" style="fill:#000000;font-size:12px;text-anchor:middle;font-family:sans-serif">vLLM</text>
+  <text x="1625" y="503" style="fill:#000000;font-size:12px;text-anchor:middle;font-family:sans-serif">LLM Server</text>
 
   <text x="1625" y="535" style="fill:#000000;font-size:16px;text-anchor:middle;font-family:sans-serif">...</text>
 
