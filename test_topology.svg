@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.0//EN" "http://www.w3.org/TR/2001/PR-SVG-20010719/DTD/svg10.dtd">
+<svg width="31cm" height="7cm" viewBox="56 41 615 137" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+  <g>
+    <rect style="fill: #ffffff" x="220" y="42.2" width="252" height="110.8"/>
+    <rect style="fill: none; fill-opacity:0; stroke-width: 2; stroke-dasharray: 20; stroke: #000000" x="220" y="42.2" width="252" height="110.8"/>
+    <text font-size="12.8" style="fill: #000000;text-anchor:middle;font-family:sans-serif;font-style:normal;font-weight:normal" x="346" y="102.4">
+      <tspan x="346" y="102.4"></tspan>
+    </text>
+  </g>
+  <g>
+    <line style="fill: none; fill-opacity:0; stroke-width: 2; stroke: #000000" x1="252.668" y1="105.428" x2="193.111" y2="104.802"/>
+    <polygon style="fill: #000000" points="260.168,105.507 250.116,110.402 252.668,105.428 250.221,100.402 "/>
+    <polygon style="fill: none; fill-opacity:0; stroke-width: 2; stroke: #000000" points="260.168,105.507 250.116,110.402 252.668,105.428 250.221,100.402 "/>
+    <polygon style="fill: #000000" points="185.611,104.723 195.663,99.8288 193.111,104.802 195.558,109.828 "/>
+    <polygon style="fill: none; fill-opacity:0; stroke-width: 2; stroke: #000000" points="185.611,104.723 195.663,99.8288 193.111,104.802 195.558,109.828 "/>
+  </g>
+  <text font-size="12.8" style="fill: #000000;text-anchor:start;font-family:sans-serif;font-style:normal;font-weight:normal" x="232.9" y="60">
+    <tspan x="232.9" y="60">LLMS Service on TCP 192.168.1.1:8000</tspan>
+  </text>
+  <g>
+    <rect style="fill: #add8e6" x="57.925" y="73.2" width="125.45" height="63"/>
+    <rect style="fill: none; fill-opacity:0; stroke-width: 2; stroke: #000000" x="57.925" y="73.2" width="125.45" height="63"/>
+    <text font-size="12.8" style="fill: #000000;text-anchor:middle;font-family:sans-serif;font-style:normal;font-weight:normal" x="120.65" y="109.5">
+      <tspan x="120.65" y="109.5">LLM Client</tspan>
+    </text>
+  </g>
+  <g>
+    <rect style="fill: #add8e6" x="235.225" y="73.2" width="220.8" height="63"/>
+    <rect style="fill: none; fill-opacity:0; stroke-width: 2; stroke: #000000" x="235.225" y="73.2" width="220.8" height="63"/>
+    <text font-size="12.8" style="fill: #000000;text-anchor:middle;font-family:sans-serif;font-style:normal;font-weight:normal" x="345.625" y="109.5">
+      <tspan x="345.625" y="109.5">ASE LLM Router and Load Balancer</tspan>
+    </text>
+  </g>
+  <g>
+    <rect style="fill: #ffffff" x="485" y="66.2" width="185" height="110.8"/>
+    <rect style="fill: none; fill-opacity:0; stroke-width: 2; stroke-dasharray: 20; stroke: #000000" x="485" y="66.2" width="185" height="110.8"/>
+    <text font-size="12.8" style="fill: #000000;text-anchor:middle;font-family:sans-serif;font-style:normal;font-weight:normal" x="577.5" y="126.4">
+      <tspan x="577.5" y="126.4"></tspan>
+    </text>
+  </g>
+  <g>
+    <line style="fill: none; fill-opacity:0; stroke-width: 2; stroke: #000000" x1="497.166" y1="105.509" x2="465.759" y2="104.891"/>
+    <polygon style="fill: #000000" points="504.664,105.656 494.568,110.459 497.166,105.509 494.765,100.46 "/>
+    <polygon style="fill: none; fill-opacity:0; stroke-width: 2; stroke: #000000" points="504.664,105.656 494.568,110.459 497.166,105.509 494.765,100.46 "/>
+    <polygon style="fill: #000000" points="458.261,104.744 468.357,99.9414 465.759,104.891 468.16,109.94 "/>
+    <polygon style="fill: none; fill-opacity:0; stroke-width: 2; stroke: #000000" points="458.261,104.744 468.357,99.9414 465.759,104.891 468.16,109.94 "/>
+  </g>
+  <g>
+    <rect style="fill: #add8e6" x="506.9" y="74.2" width="125.45" height="63"/>
+    <rect style="fill: none; fill-opacity:0; stroke-width: 2; stroke: #000000" x="506.9" y="74.2" width="125.45" height="63"/>
+    <text font-size="12.8" style="fill: #000000;text-anchor:middle;font-family:sans-serif;font-style:normal;font-weight:normal" x="569.625" y="110.5">
+      <tspan x="569.625" y="110.5">LLM Endpoint</tspan>
+    </text>
+  </g>
+  <g>
+    <rect style="fill: #add8e6" x="521.9" y="85.2" width="125.45" height="63"/>
+    <rect style="fill: none; fill-opacity:0; stroke-width: 2; stroke: #000000" x="521.9" y="85.2" width="125.45" height="63"/>
+    <text font-size="12.8" style="fill: #000000;text-anchor:middle;font-family:sans-serif;font-style:normal;font-weight:normal" x="584.625" y="121.5">
+      <tspan x="584.625" y="121.5">LLM Endpoint</tspan>
+    </text>
+  </g>
+  <g>
+    <rect style="fill: #add8e6" x="535.9" y="100.2" width="125.45" height="63"/>
+    <rect style="fill: none; fill-opacity:0; stroke-width: 2; stroke: #000000" x="535.9" y="100.2" width="125.45" height="63"/>
+    <text font-size="12.8" style="fill: #000000;text-anchor:middle;font-family:sans-serif;font-style:normal;font-weight:normal" x="598.625" y="136.5">
+      <tspan x="598.625" y="136.5">LLM Endpoint</tspan>
+    </text>
+  </g>
+  <text font-size="12.8" style="fill: #000000;text-anchor:start;font-family:sans-serif;font-style:normal;font-weight:normal" x="552.9" y="57">
+    <tspan x="552.9" y="57">LLM Cluster</tspan>
+  </text>
+</svg>
