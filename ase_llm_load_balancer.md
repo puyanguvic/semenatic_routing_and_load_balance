@@ -90,7 +90,6 @@ flowchart TD
     C -- Pass --> D[Add Semantic Cache]
     D --> F[Return Response]
 ```
-
 ## LLM Listener
 
 A dedicated LLM listener is used to listen LLM requests on a specified L4 port. When received a new LLM request, a new local LLM service L4 port is set up to serve the client.
@@ -119,17 +118,9 @@ There are some basic restful APIs must be implemented in ASE LLM semantic router
   This is the healthy status of ASE LLM service.
 
 - Readiness status
-  <<<<<<< HEAD
     This is the Readiness status of ASE LLM service.
 
 As to the other kinds of LLM infererence requests, ASE LLM semantic router works as a relay point.
-=======
-
-  This is the Readiness status of ASE LLM service.
-
-As to the other kinds of LLM infererence requests,  ASE LLM semantic router works as a relay point.
-
-> > > > > > > ea9a8c930051f758835ed3b8aa121723beebd174
 
 ## Semantic Router
 
@@ -180,8 +171,6 @@ By the way, TCP and HTTP/2 connections are preallocated and reuseable in the poo
 
 Streams are dynamically allocated when a LLM request service is requested and freed when a LLM response completed.
 
-<<<<<<< HEAD
-
 ###### Session Affinity
 
 Normally there are cookie-based and header-based session affinity. 
@@ -209,43 +198,11 @@ In this type, only the first IP address which DNS returned and used for LLM endp
 
 In this mode, each domain name maps to one LLM endpoint.
 
-=======
-
-> > > > > > > ea9a8c930051f758835ed3b8aa121723beebd174
-
 ###### Failover and Fault Isolation
 
 When a healthy check failure is detected on a LLM endpoint, the corresponding connection pool is cleared and isolated for LLM service.
 
 When a failed LLM endpoint is back from unhealthy to healthy, the corresponding connection pool will be setup and back for LLM service.
-
-<<<<<<< HEAD
-=======
-
-###### DNS Resolve
-
-The configured LLM endpoint could be IP address or domain name. The DNS module is responsible for resolve one or more IP addresses from the domain name, and each serves as a independent LLM endpoint.       
-
-There is a DNS service discovery mode configurable in LLM cluster scope.
-
-- Strict DNS mode
-  DNS service is used as a means of load balancing in some large service deployments, which means a domain name may be bounded to multiple IP addresses.   
-
-An asyn task shall be scheduled to poll domain name multiple times to get all the IP addresses, and each endpoints will taken as an independent LLM endpoint.
-
-A periodic poll shall be scheduled to make sure new IP addresses added or old IP addresses removed from DNS domain name bounded list.
-
-In this mode, each domain name could map to multiple LLM endpoints.
-
-- Logical DNS mode
-
-In this mode, only the first IP address which DNS retured is used for LLM endpoint.
-
-About description means that one domain name could map to multiple LLM endpoints.
-
-In this mode, each domain name maps to one LLM endpoint.
-
-> > > > > > > ea9a8c930051f758835ed3b8aa121723beebd174
 
 ###### API Key
 
@@ -267,27 +224,9 @@ It's created after load balancer schedues a destination HTTP/2 connection and st
 It's used by LLM response to find the LLM request connection, so that it can be forwarded to the right LLM request side.
 
 It is removed after LLM response is completed.
-
 ### Vendor Adapter Layer
 
-<<<<<<< HEAD
 Because there are no unified APIs and formats across different LLM engine verdors to poll the capabilities, health, metrics and KV events of remote LLM engines, so need a vendor adapter layer to adapt and normalize the informations.
-=======
-Because there are no unified APIs across different LLM engine verdors to poll the capability, health and metrics of remote LLM engines, so need a vendor adapter layer to adapt and normalize the informations.
-
-#### Health Check
-
-Healthy check method is used to detect the Healthy conditions of a remote LLM engine.
-
-There are multiple healthy check methods to use like HTTP/gRPC/TCP 3 stage Connection, etc.
-
-A healthy check routine shall be scheduled in a configurable period of interval, so that it can keep Healthy status upgraded as soon as possible.
-
-#### LLM Engine Capability
-
-The capabilities that LLM LLM engine may have:
-
-> > > > > > > ea9a8c930051f758835ed3b8aa121723beebd174
 
 #### Health Check
 
@@ -320,24 +259,13 @@ The capabilities of LLM engine can be generally categorized into supported model
   - streaming
   - quantization
 
-<<<<<<< HEAD
 If LLM engine capabilities are used for load balancer, normally ASE only need to poll the capabilities of a LLM engine at the startup time, but considering the dynamical change may happen on the LLM engines, a peridic routing shall be scheduled to poll from LLM engines.
-=======
-Normally ASE only need to poll the capabilities of a LLM engine at the startup time, but considering the dynamical change may happen on the LLM engines, a peridic routing shall be scheduled to poll from LLM engines.
-
-> > > > > > > ea9a8c930051f758835ed3b8aa121723beebd174
 
 The suggested capabilities polling interval is in hours and configurable. 
 
 #### LLM Engine Metrics
 
-<<<<<<< HEAD
 The metrics from LLM engine is an important source for engine-aware load balancer scheduler. Generally there are queue-level，resource utilization, latency, throughput and other miscellaneous statistics.   
-=======
-
-##### Major Metrics
-
-> > > > > > > ea9a8c930051f758835ed3b8aa121723beebd174
 
 - Queue-level Metrics
   - Number of running requests (refered as "num_running_requests")
@@ -363,43 +291,15 @@ The metrics from LLM engine is an important source for engine-aware load balance
 
 ##### Metrics Scraper
 
-<<<<<<< HEAD
 If LLM engine metrics is used for load balancer, then a metrics scraper is used to poll realtime metrics of LLM endpoints periodically, and this module only focuses on the metrics which can be used for LLM load balancer.
-=======
-A metrics scraper is used to poll realtime metrics of LLM endpoints periodically, and this module only focuses on the metrics which can be used for LLM load balancer.
-
-> > > > > > > ea9a8c930051f758835ed3b8aa121723beebd174
 
 To make the metrics meanful in a realtime manner, a configurable parameter needed to define and configurable for this time interval. 
 
 ### Schedule Algorithsm
 
-<<<<<<< HEAD
 As mentioned before, there are no unified LLM engine capabilities, metrics and KV events defined across the industry.
 
 Considering the compatibility requirement, ASE will use a general and reliable way to do load balancer, which will be based on the local LLM statistics of what load balancer can collect, refered as light-LLM-aware,  as to the metrics and capabilities of remote LLM engine, will not be considered currently.
-=======
-
-#### Prefix-Cache
-
-To be LLM-engine-aware load balancer, the scheduler must be based on three categories of data sources: 
-
-- Local request context
-
-- Local schedule state and statistics
-  
-  - prefix-cache
-  - 
-
-- Local LLM engine configuration
-  Local weight is configurable and used for local preference.
-
-- Remote LLM engine capability/metrics/healthy status   
-  These parts needs to be polled from LLM engine remotely.
-
-#### Prefix-Cache
-
-> > > > > > > ea9a8c930051f758835ed3b8aa121723beebd174
 
 So the proposal schedule Algorithsms are: round robin/weighted round robin/IP-Hash/light-LLM-aware.
 
