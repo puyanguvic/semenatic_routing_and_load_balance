@@ -48,14 +48,17 @@ flowchart TD
     SC -- Yes --> F[Return Cached Response]
 
     SC -- No --> SEC{Security Inspection 1}
-    SEC -- No --> G[Return Security Error]
+    SEC -- Fail --> G[Return Security Error]
 
-    SEC -- Yes --> SR{Semantic Router}
-    SR -- No Model --> R2[Reject]
-
-    SR -- Model Selected --> LB{Load Balancer}
-    LB -- No --> R3[Reject]
-
+    SEC -- Pass --> SR{Semantic Router}
+    SR -- No Model Selected --> R2[Reject]
+    SR -- Model Selected --> SID{Session ID?}
+    SID -- matched --> EP{Endpoint is healthy?}
+    SID -- unmatched --> LB{Load Balancer?}
+    EP -- unhealthy --> LB{Load Balancer?}
+    EP -- healthy --> MAP[Create Connection Mapping] 
+    
+    LB -- No Endpoint Selected --> R3[Reject]
     LB -- Endpoint Selected --> MAP[Create Connection Mapping]
     MAP --> FORWARD[Forward to Upstream Endpoint]
 ```
@@ -449,5 +452,3 @@ config:
 [8] TGI metrics https://huggingface.co/docs/text-generation-inference/main/en/reference/metrics
 
 [9] ollama metrics https://github.com/ollama/ollama/blob/main/docs/api/usage.mdx and https://github.com/ollama/ollama/blob/main/docs/api.md#list-running-models
-
-
