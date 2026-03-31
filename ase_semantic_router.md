@@ -224,29 +224,24 @@ Let `r` denote the normalized request context and let `P = {p1, p2, ..., pn}` de
 The legal candidate set is therefore:
 
 $$
-F(r) = \{\, p \in P \mid \operatorname{capability\_feasible}(r, p) \land \operatorname{policy\_feasible}(r, p) \,\}
+F(r) = \{\, p \in P \mid \mathrm{capability\_feasible}(r, p) \wedge \mathrm{policy\_feasible}(r, p) \,\}
 $$
 
-For each $p \in F(r)$, the router computes a bounded utility score:
+For each `p in F(r)`, the router computes a bounded utility score:
 
 $$
 U(r, p) = w_1 S_{\mathrm{sem}}(r, p) + w_2 S_{\mathrm{cont}}(r, p) + w_3 S_{\mathrm{pref}}(r, p) + w_4 S_{\mathrm{pool}}(r, p)
 $$
 
 $$
-S_{\mathrm{sem}}(r, p) = a_1 s_{\mathrm{keyword}}(r, p)
-+ a_2 s_{\mathrm{embedding}}(r, p)
-+ a_3 s_{\mathrm{domain}}(r, p)
-+ a_4 s_{\mathrm{complexity}}(r, p)
+S_{\mathrm{sem}}(r, p) = a_1 s_{\mathrm{keyword}}(r, p) + a_2 s_{\mathrm{embedding}}(r, p) + a_3 s_{\mathrm{domain}}(r, p) + a_4 s_{\mathrm{complexity}}(r, p)
 $$
 
 $$
-S_{\mathrm{cont}}(r, p) =
-\begin{cases}
-1, & \text{if a valid previous session exists and } p \text{ remains valid} \\
-0, & \text{otherwise}
-\end{cases}
+S_{\mathrm{cont}}(r, p) \in \{0, 1\}
 $$
+
+`S_cont(r, p)` is `1` when a valid previous session exists and `p` remains valid; otherwise it is `0`.
 
 $$
 S_{\mathrm{pref}}(r, p) = b_1 s_{\mathrm{latency}}(r, p) + b_2 s_{\mathrm{cost}}(r, p) + b_3 s_{\mathrm{quality}}(r, p)
@@ -255,24 +250,22 @@ $$
 The selected pool is the maximizer over the legal candidate set:
 
 $$
-p^{*} = \operatorname*{arg\,max}_{p \in F(r)} U(r, p)
+p^{*} = \arg \max_{p \in F(r)} U(r, p)
 $$
 
-If $F(r)$ is empty, the router MUST return a semantic rejection or an explicitly configured fallback outcome. Once $p^{*}$ is selected, the router constructs a `RouteDecision` containing the chosen `route_class`, `target_pool`, `model_family`, and `safety_profile`.
+If `F(r)` is empty, the router MUST return a semantic rejection or an explicitly configured fallback outcome. Once `p*` is selected, the router constructs a `RouteDecision` containing the chosen `route_class`, `target_pool`, `model_family`, and `safety_profile`.
 
-A clear non-normative pseudocode form is shown below:
+A non-normative reference procedure is shown below:
+
+| Field | Description |
+| ----- | ----------- |
+| Algorithm | Constraint-Aware Route Selection |
+| Inputs | `r`: normalized request context; `P`: candidate pools derived from the matched routing rule |
+| Output | `RouteDecision`, or rejection/fallback outcome |
 
 ```text
-Algorithm: Constraint-Aware Route Selection
-
-Input:
-    request r
-    candidate pools P
-
-Output:
-    RouteDecision or rejection/fallback
-
-1. F <- empty set
+Procedure:
+1. F <- {}
 2. for each p in P do
 3.     if not capability_feasible(r, p) then
 4.         continue
@@ -280,13 +273,13 @@ Output:
 6.     if not policy_feasible(r, p) then
 7.         continue
 8.     end if
-9.     score(p) <- U(r, p)
-10.    add p to F
+9.     score[p] <- U(r, p)
+10.    F <- F union {p}
 11. end for
-12. if F is empty then
+12. if F = {} then
 13.    return reject_or_fallback(r)
 14. end if
-15. p* <- argmax score(p) over p in F
+15. p* <- arg max score[p] over p in F
 16. return build_route_decision(r, p*)
 ```
 
