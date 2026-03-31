@@ -174,49 +174,43 @@ Before any optimization among candidate pools or model families, the request MUS
 
 The filter evaluates request validity, explicit-override authorization, capability and modality matching, context-length and token-limit constraints, tenant restrictions, provider allowlists or denylists, privacy and compliance tags, jailbreak policy, and PII-sensitive routing restrictions.
 
-The filter processing flowchart is below:
+The hard-filter stage is eliminative rather than score-based. A candidate that fails any hard constraint MUST be removed from the legal route space before optimization, preference handling, or plugin execution begins.
 
 ```mermaid
-flowchart TD
-    A[Candidate Pool or Model Family] --> B{Capability Match?}
+flowchart LR
+    A[Evaluate Candidate Pool or Model Family] --> B{Capabilities and Modalities Compatible?}
+    B -- No --> R[Reject Candidate]
 
-    B -- No --> NP[No Pass]
-    B -- Yes --> C{Policy Allowed?}
-    C -- No --> NP[No Pass]
-    C -- Yes --> D[Pass]
+    B -- Yes --> C{Context and Token Limits Satisfied?}
+    C -- No --> R
+
+    C -- Yes --> D{Policy and Governance Allowed?}
+    D -- No --> R
+    D -- Yes --> P[Mark Candidate Eligible]
 ```
 
 #### Decision Engine and Pool Selection
 
 The route-decision algorithm MUST use normalized request context, extracted signals, configured decision rules and candidate pools or `modelRefs`, logical model capabilities and pool mappings, and any applicable continuity or caller preferences. Unlike ASE LLM Load Balancer, semantic routing MUST NOT use backend queue depth, endpoint health, or connection-pool runtime state to choose the target pool.
 
-The semantic routing processing flowchart is below:
+The decision engine performs constrained selection over the legal candidate set that survives hard filtering. Its purpose is to explain how ASE chooses one semantic target pool or model family, not to expose internal helper-function structure.
 
 ```mermaid
-flowchart TD
-    A[Semantic Router Request] --> B{Filter}
+flowchart LR
+    A[Normalized Request Context] --> I[Assemble Decision Inputs]
+    B[Extracted Signal Set] --> I
+    C[Matched Routing Rule] --> I
+    D[Eligible Candidate Pools or modelRefs] --> I
+    E[Caller and Session Preferences] --> I
 
-    B -- no pass --> Reject[Reject]
-    B -- pass --> Decision
-
-    Decision --> S1[Keyword and Embedding Signal]
-    Decision --> S2[Domain and Task Signal]
-    Decision --> S3[Complexity and Context Signal]
-    Decision --> S4[Capability and Modality Signal]
-    Decision --> S5[Policy and AuthZ Signal]
-    Decision --> S6[Session Continuity Score]
-
-    S1 --> WS[Decision Merge and Candidate Ranking]
-    S2 --> WS
-    S3 --> WS
-    S4 --> WS
-    S5 --> WS
-    S6 --> WS
-
-    WS --> PK[RouteDecision selected]
+    I --> S[Score and Rank Legal Candidates]
+    S --> T[Apply Continuity and Tie-Break Rules]
+    T --> G{Target Pool Selected?}
+    G -- No --> X[Return No Route Error]
+    G -- Yes --> R[Emit RouteDecision]
 ```
 
-In this flow, the Filter module evaluates request validity, hard capability constraints, and policy constraints. The Decision Merge and Candidate Ranking phase is bounded by the matched `routing.decisions` rule and the legal candidate pools and `modelRefs` associated with that rule.
+In this flow, the hard-filter stage has already removed infeasible candidates. The decision engine then combines normalized request context, extracted signals, the matched `routing.decisions` rule, the remaining legal candidate pools or `modelRefs`, and any applicable caller or session preferences into a bounded ranking problem. Continuity handling and tie-break rules MAY influence which legal candidate is selected, but they MUST operate only within the feasible route space.
 
 Supported route-selection strategies MAY include static priority, quality-first selection, cost-aware selection, latency-aware selection based on model-level attributes, and hybrid policy-aware ranking.
 
