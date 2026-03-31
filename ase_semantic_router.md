@@ -223,33 +223,42 @@ Let `r` denote the normalized request context and let `P = {p1, p2, ..., pn}` de
 
 The legal candidate set is therefore:
 
-```text
-F(r) = { p in P | capability_feasible(r, p) and policy_feasible(r, p) }
-```
+$$
+F(r) = \{\, p \in P \mid \operatorname{capability\_feasible}(r, p) \land \operatorname{policy\_feasible}(r, p) \,\}
+$$
 
-For each `p in F(r)`, the router computes a bounded utility score:
+For each $p \in F(r)$, the router computes a bounded utility score:
 
-```text
-U(r, p) = w1*S_sem(r, p) + w2*S_cont(r, p) + w3*S_pref(r, p) + w4*S_pool(r, p)
+$$
+U(r, p) = w_1 S_{\mathrm{sem}}(r, p) + w_2 S_{\mathrm{cont}}(r, p) + w_3 S_{\mathrm{pref}}(r, p) + w_4 S_{\mathrm{pool}}(r, p)
+$$
 
-S_sem(r, p)  = a1*s_keyword(r, p)
-             + a2*s_embedding(r, p)
-             + a3*s_domain(r, p)
-             + a4*s_complexity(r, p)
+$$
+S_{\mathrm{sem}}(r, p) = a_1 s_{\mathrm{keyword}}(r, p)
++ a_2 s_{\mathrm{embedding}}(r, p)
++ a_3 s_{\mathrm{domain}}(r, p)
++ a_4 s_{\mathrm{complexity}}(r, p)
+$$
 
-S_cont(r, p) = 1, if a valid previous session exists and p remains valid
-             = 0, otherwise
+$$
+S_{\mathrm{cont}}(r, p) =
+\begin{cases}
+1, & \text{if a valid previous session exists and } p \text{ remains valid} \\
+0, & \text{otherwise}
+\end{cases}
+$$
 
-S_pref(r, p) = b1*s_latency(r, p) + b2*s_cost(r, p) + b3*s_quality(r, p)
-```
+$$
+S_{\mathrm{pref}}(r, p) = b_1 s_{\mathrm{latency}}(r, p) + b_2 s_{\mathrm{cost}}(r, p) + b_3 s_{\mathrm{quality}}(r, p)
+$$
 
 The selected pool is the maximizer over the legal candidate set:
 
-```text
-p* = argmax_{p in F(r)} U(r, p)
-```
+$$
+p^{*} = \operatorname*{arg\,max}_{p \in F(r)} U(r, p)
+$$
 
-If `F(r)` is empty, the router MUST return a semantic rejection or an explicitly configured fallback outcome. Once `p*` is selected, the router constructs a `RouteDecision` containing the chosen `route_class`, `target_pool`, `model_family`, and `safety_profile`.
+If $F(r)$ is empty, the router MUST return a semantic rejection or an explicitly configured fallback outcome. Once $p^{*}$ is selected, the router constructs a `RouteDecision` containing the chosen `route_class`, `target_pool`, `model_family`, and `safety_profile`.
 
 A clear non-normative pseudocode form is shown below:
 
@@ -271,17 +280,14 @@ Output:
 6.     if not policy_feasible(r, p) then
 7.         continue
 8.     end if
-9.     score(p) <- w1*S_sem(r, p)
-10.               + w2*S_cont(r, p)
-11.               + w3*S_pref(r, p)
-12.               + w4*S_pool(r, p)
-13.     add p to F
-14. end for
-15. if F is empty then
-16.     return reject_or_fallback(r)
-17. end if
-18. p* <- argmax score(p) over p in F
-19. return build_route_decision(r, p*)
+9.     score(p) <- U(r, p)
+10.    add p to F
+11. end for
+12. if F is empty then
+13.    return reject_or_fallback(r)
+14. end if
+15. p* <- argmax score(p) over p in F
+16. return build_route_decision(r, p*)
 ```
 
 This formulation makes the module boundary explicit: hard capability and policy constraints define the feasible set first; semantic, continuity, and preference signals optimize only within that legal set; and the output of the module is a `RouteDecision` rather than a backend endpoint selection. Semantic Router selects the capability pool; Load Balancer selects the concrete serving replica.
