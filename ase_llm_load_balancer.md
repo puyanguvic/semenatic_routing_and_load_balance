@@ -4,7 +4,7 @@ ASE LLM Load Balancer
 
 LLM inference traffic behaves very differently from traditional web traffic. Request cost depends on prompt and generation token volume, responses are often long-lived because of token streaming, GPU memory is stateful because of KV-cache locality, and overall throughput is strongly influenced by batching efficiency and queue state rather than by simple request counts. Because of these characteristics, conventional load-balancing strategies that only observe connections or request rates cannot consistently deliver good utilization, latency, and resilience for LLM backends.
 
-There are some LLM-aware load balancers in the market like lld-d, vLLM production stack and nvidia Dynamo which are mostly based on Kubernetes-native cluster, and can support limited vendors of LLM engines, and generally have LLM engine pool included in the cluster, so the schedulers can be aware of the metrics of LLM engine and KV cache event. vLLM production stack supports "static-backends" which means the LLM engines are not in the Kubernetes-native cluster, so the scheduler is down-graded to a light-LLM-aware scheduler.
+There are some LLM-aware load balancers in the market like lld-d, vLLM production stack and nvidia Dynamo which are mostly based on Kubernetes-native cluster, and can support limited vendors of LLM engines, and generally have LLM engine pool included in the cluster, so the schedulers can be aware of the metrics of LLM engine and KV cache events. vLLM production stack supports "static-backends" which means the LLM engines are not in the Kubernetes-native cluster. In this case, the scheduler is down-graded to a light-LLM-aware scheduler which only is based on LLM engine remote metrics and local LLM request and response statistics.
 
 ASE LLM Load Balancer is designed as a light-LLM-aware scheduling component that works together with the ASE semantic router and security gateway to load balance the LLM requests to external LLM enignes. It selects backend LLM endpoints by combining local request context with upstream engine health, and request and response local statistics. The design goal is to provide secure, cost-efficient, resilient, and performance-aware routing across heterogeneous LLM servers.
 
@@ -238,7 +238,7 @@ Metrics older than a configured freshness threshold SHOULD be treated as stale a
 
 As mentioned before, there are no unified LLM engine capabilities, metrics and KV events defined across the industry.
 
-Considering the compatibility requirement, ASE will use a general and reliable way to do load balancing, which will be based on the local LLM request and response statistics of what load balancer can collect, refered as light-LLM-aware, as to the metrics and capabilities of remote LLM engine, will not be considered currently.
+Considering the compatibility requirement, ASE uses a general and reliable way to do load balancing, which is be based on the local LLM request and response statistics, refered as light-LLM-aware, as to the metrics and capabilities of remote LLM engine, will not be considered currently.
 
 So the proposal schedule algorithms are: round robin/weighted round robin/IP-Hash/light-LLM-aware.
 
