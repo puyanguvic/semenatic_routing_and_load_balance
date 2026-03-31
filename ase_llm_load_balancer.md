@@ -4,17 +4,22 @@ ASE LLM Load Balancer
 
 LLM inference traffic behaves very differently from traditional web traffic. Request cost depends on prompt and generation token volume, responses are often long-lived because of token streaming, GPU memory is stateful because of KV-cache locality, and overall throughput is strongly influenced by batching efficiency and queue state rather than by simple request counts. Because of these characteristics, conventional load-balancing strategies that only observe connections or request rates cannot consistently deliver good utilization, latency, and resilience for LLM backends.
 
-ASE LLM Load Balancer is designed as an light-LLM-aware scheduling component that works together with the ASE semantic router and security gateway. It selects backend LLM endpoints by combining local request context with upstream engine health, and request and response local statistics. The design goal is to provide secure, cost-efficient, resilient, and performance-aware routing across heterogeneous LLM servers.
+There are some LLM-aware load balancers in the market like lld-d, vLLM production stack and nvidia Dynamo which are mostly based on Kubernetes-native cluster, and can support limited vendors of LLM engines, and generally have LLM engine pool included in the cluster, so the schedulers can be aware of the metrics of LLM engine and KV cache event. vLLM production stack supports "static-backends" which means the LLM engines are not in the Kubernetes-native cluster, so the scheduler is down-graded to a light-LLM-aware scheduler.
 
-This document describes the problem background, the architecture of the ASE LLM router and load balancer, the core endpoint and connection abstractions, the vendor adapter layer used to normalize health, capability, and metrics data from different LLM engines, and the scheduling model used to make light-engine-aware balancing decisions. The first development stage focuses on HTTP/2-based LLM inference APIs.
+ASE LLM Load Balancer is designed as a light-LLM-aware scheduling component that works together with the ASE semantic router and security gateway to load balance the LLM requests to external LLM enignes. It selects backend LLM endpoints by combining local request context with upstream engine health, and request and response local statistics. The design goal is to provide secure, cost-efficient, resilient, and performance-aware routing across heterogeneous LLM servers.
+
+This document describes the problem background, the architecture of the ASE LLM router and load balancer, the core endpoint and connection abstractions, the vendor adapter layer used to normalize health, capability, and metrics data from different LLM engines, and the scheduling algorthism used to make light-engine-aware balancing decisions. The first development stage focuses on HTTP/2-based LLM inference APIs.
 
 ## Background
 
-Current LLM routing solutions often solve only part of the problem. Some extend general-purpose API gateways with AI-related policies and plugins, which is useful for traffic governance but does not make the gateway natively inference-aware. Some focus on semantic routing and model selection, but do not provide a real load-balancing layer for distributing requests across multiple LLM endpoints. Others are coupled to a specific proxy or inference stack, so backend scheduling still depends heavily on generic L4 or L7 balancing with limited visibility into queue state, cache locality, batching behavior, and other engine-level signals.
+The problems in current LLM routers are: 
 
-ASE starts from a different deployment position. As a security gateway between internal clients and external or internal LLM services, ASE already acts as a web proxy and enforcement point for authentication, policy, and traffic inspection. That makes it a natural place to combine semantic routing and LLM-aware load balancing in one control plane, while also providing stronger security handling for LLM request and response traffic than a standalone router typically does.
+- Semantic router enhancements based on current API gateways like Kong AI Gateway and Cloudflare AI Gateway，not natively designed as semantic router, use policy/rules and plugins to do partially semantic router enhancements. 
+- Designed and focused on semantic router model selection, no load balancer function like semantic-router and RouteLLM.
+- Designed as semantic router and works as a plugin in web proxy (e.g. Envoy)like vLLM semantic router. load balancer function mostly depends on web proxy L4/L7 load balancer with limited LLM-aware scheduler.
+- vLLM production stack, llm-d and nvidia Dynamo add a load balancer and resource scheduler layer over LLM engines, generally used in a Kubernetes-native cluster, and function as engine-aware scheduler to achieve better peformance. The problem is all the three can onlys support limited vendors of LLM engines because of compatibility of metrics/KV event of different LLM engine vendors.
 
-There is also a clear product gap: there is still no broadly adopted, engine-agnostic LLM load balancer with a normalized view of backend health, capabilities, and scheduling metrics. ASE LLM Load Balancer is designed to address that gap and provide a practical foundation for secure and efficient LLM traffic management.
+ASE works as an important component of security gateway between internal network and external network, it mostly works as a web proxy and naturely can serve as a LLM semantic router and load balancer. There is some key competitive differentiations that ASE can provide more advanced security features on the LLM request and response traffics.
 
 ## Scope
 
@@ -42,7 +47,7 @@ flowchart TD
     C -- Yes --> SC{Semantic Cache Hit?}
     SC -- Yes --> F[Return Cached Response]
 
-    SC -- No --> SEC{Security Inspection}
+    SC -- No --> SEC{Security Inspection 1}
     SEC -- No --> G[Return Security Error]
 
     SEC -- Yes --> SR{Semantic Router}
@@ -65,7 +70,7 @@ flowchart TD
 
     B -- No --> DROP[Drop]
 
-    B -- Yes --> C{Security Inspection}
+    B -- Yes --> C{Security Inspection 2}
     C -- Fail --> ALERT[Raise Security Alert]
 
     C -- Pass --> D[Update Semantic Cache]
@@ -80,11 +85,9 @@ The LLM Listener is the client-facing entry point for inference traffic. It MUST
 
 Routing decisions MUST be made per request rather than per transport connection. Accordingly, two requests received on the same client connection MAY be forwarded to different backend LLM endpoints.
 
-The listener MUST preserve enough request metadata for validation, policy enforcement, semantic routing, load balancing, and response correlation. The externally visible service surface is defined by the LLM RESTful Service Interface and LLM Service RESTful APIs sections of this document.
-
 ## Ports
 
-Ports MAY be used for TLS termination, HTTP processing, authentication, administrative access, or other deployment-specific functions.
+Ports MAY be used for TCP, TLS and HTTP processing, authentication, administrative access, or other deployment-specific functions.
 
 Their detailed internal behavior is out of scope for this document unless explicitly referenced by the LLM service path.
 
@@ -119,9 +122,9 @@ Any cache hit MUST satisfy configured similarity, freshness, and policy constrai
 
 ## Load Balancer
 
-The load balancer selects one upstream endpoint from the candidate cluster chosen by the semantic router. Endpoint selection MUST consider endpoint eligibility, transport capacity, connection state, engine capabilities, and runtime metrics.
+The load balancer selects one upstream endpoint from the candidate cluster chosen by the semantic router.
 
-The following subsections define the required data model and scheduling behavior.
+The following subsections define the required data structures and scheduling behavior.
 
 ### Core Data Structures
 
@@ -133,9 +136,7 @@ This separation allows semantic routing to resolve model selection firstly and e
 
 #### LLM Endpoint
 
-An LLM endpoint is an individual upstream inference target. It MAY represent a directly configured IP address, a resolved DNS address, or a provider-specific service instance.
-
-Endpoint scheduling SHOULD consider health, connection pool state, queue pressure, cache affinity, failure history, and configured local weight.
+An LLM endpoint is an upstream LLM service provider. And most of schedule factors are based on LLM service endpoint like healthy check, connection pool, statistics,  failover and fault isolation, etc.
 
 ##### Connection Pool
 
@@ -164,13 +165,15 @@ The implementation SHOULD drain or clear the affected connection pool according 
 
 An endpoint MAY be configured as either an IP address or a domain name. If a domain name is used, the DNS subsystem is responsible for resolving one or more IP addresses.
 
-Each resolved address MAY be materialized as a schedulable endpoint according to the configured DNS mode:
+Each doamin name MAY be resolved as one or multiple schedulable endpoints according to the configured DNS type:
 
 - `strict_dns`
   All currently resolved addresses MUST be treated as distinct endpoints. The resolver SHOULD poll periodically so that newly added addresses are admitted and removed addresses are withdrawn.
 
 - `logical_dns`
-  The configuration maps to one logical endpoint, and only one currently preferred resolved address is used for scheduling at a time.
+  In this type, only the first IP address which DNS returned and used for LLM endpoint.
+
+In this mode, each domain name maps to one LLM endpoint.
 
 ##### API Key
 
@@ -207,11 +210,11 @@ Adapters SHOULD discover and normalize the capabilities required by semantic rou
 - semantic capabilities: completion, chat, embedding, rerank, classify, tool calling, structured output, vision, audio, transcription
 - operational capabilities: context length, maximum input tokens, maximum total tokens, maximum concurrency, streaming support, quantization mode
 
-Capabilities SHOULD be fetched during startup and MAY be refreshed periodically. The refresh interval SHOULD be configurable and is expected to be on the order of hours rather than seconds.
+If LLM engine capabilities are used for load balancer, capabilities SHOULD be fetched during startup and MAY be refreshed periodically. The refresh interval SHOULD be configurable and is expected to be on the order of hours rather than seconds.
 
 #### LLM Engine Metrics
 
-Runtime metrics are used for dynamic scheduling. Because different engines expose different signals, an adapter MUST publish only metrics that are available and sufficiently fresh. Missing metrics MUST be represented as unknown rather than fabricated.
+The metrics from LLM engine is an important source for engine-aware load balancer scheduler. Generally there are queue-level，resource utilization, latency, throughput and other miscellaneous statistics.   
 
 ##### Metric Categories
 
@@ -225,20 +228,21 @@ The scheduler MAY consume the following metric categories when available:
 
 ##### Metrics Scraper
 
+If LLM engine metrics are used for load balancer, then a metrics scraper is used to poll realtime metrics of LLM endpoints periodically.
+
 The metrics scraper MUST poll or subscribe to backend metrics at a configurable interval. The sampling interval SHOULD balance freshness against scrape cost.
 
 Metrics older than a configured freshness threshold SHOULD be treated as stale and SHOULD receive reduced or zero weight in the scheduler.
-
 
 ### Schedule Algorithsm
 
 As mentioned before, there are no unified LLM engine capabilities, metrics and KV events defined across the industry.
 
-Considering the compatibility requirement, ASE will use a general and reliable way to do load balancer, which will be based on the local LLM statistics of what load balancer can collect, refered as light-LLM-aware,  as to the metrics and capabilities of remote LLM engine, will not be considered currently.
+Considering the compatibility requirement, ASE will use a general and reliable way to do load balancing, which will be based on the local LLM request and response statistics of what load balancer can collect, refered as light-LLM-aware, as to the metrics and capabilities of remote LLM engine, will not be considered currently.
 
-So the proposal schedule Algorithsms are: round robin/weighted round robin/IP-Hash/light-LLM-aware.
+So the proposal schedule algorithms are: round robin/weighted round robin/IP-Hash/light-LLM-aware.
 
-As to the algorithsm of light-LLM-aware, it's based on the local statistics of LLM requests and responses :
+As to the algorithsm of light-LLM-aware, it's based on the following local statistics of LLM requests and responses:
 
 - Query per second(QPS)
 - Time To First Token(TTFT)
@@ -251,10 +255,18 @@ As to the algorithsm of light-LLM-aware, it's based on the local statistics of L
 #define ASE_LLM_LB_AVG_LATENCY_WEIGHT 0.15
 #define ASE_LLM_LB_INTER_TOKEN_LATENCY_WEIGHT 0.10
 
-qps_score = 1 - normalize(qps)
-ttft_score = 1 - normalize(ttft)
-latency_score = 1 - normalize(latency)
-inter_token_latency_score = 1 - normalize(inter_token_latency)
+# Gain normalization, the bigger, the better
+gain_normalize(val) = (val - val_min) / max(val_max - val_min, eps)
+
+# Cost normalization, the smaller, the better
+gain_normalize(val) = (val_max - val) / max(val_max - val_min, eps)
+
+Note: eps is a very small positive number used to prevent division by zero or numerical instability.
+
+qps_score = 1 - gain_normalize(qps)
+ttft_score = 1 - cost_normalize(ttft)
+latency_score = 1 - cost_normalize(latency)
+inter_token_latency_score = 1 - cost_normalize(inter_token_latency)
 
 total_score =
     ASE_LLM_LB_QPS_WEIGHT * qps_score
@@ -407,18 +419,15 @@ config:
           - name: primary-vllm
             endpoint: vllm-llama3-8b-instruct.default.svc.cluster.local:8000
             vendor: vLLM
-            dns_type: STRICT_DNS
-            dns_lookup_family: AUTO
+            dns_type: STATIC/STRICT_DNS/LOGICAL_DNS
+            dns_lookup_family: V4_ONLY/V6_ONLY/AUTO
             protocol: http2
             api_key: xxxxxxxxxxxxxxxxxxxxxxxxxxxx
             weight: 100
 
   load_balancer:
     strategies:
-      - adaptive_llm_aware
-
-  capability_poll_interval_seconds: 3600
-  metrics_poll_interval_ms: 1000
+      - round robin/weighted round robin/IP-Hash/Least-conn/light-LLM-aware
 ```
 
 # References
