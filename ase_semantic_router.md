@@ -32,50 +32,52 @@ Within this scope, the module owns request normalization, signal extraction, cap
 
 The end-to-end request path is `Client -> Semantic Router -> Load Balancer -> Model Pool / Endpoint -> vLLM Server`. At the semantic control-plane boundary, the same path is `Request -> SR: semantic decision -> LB: instance selection -> Backend: inference execution`.
 
-### Major LLM Request Processing Flow
+The following flows describe the stages owned by ASE Semantic Router. They do not restate endpoint scheduling, backend health evaluation, or transport-level dispatch, which are responsibilities of ASE LLM Load Balancer.
+
+### Semantic Router Request Path
 
 ```mermaid
-flowchart TD
-    A[LLM Listener] --> B[Receive Request]
-    B --> C{Valid?}
+flowchart LR
+    A[Receive Request] --> B{Request Valid?}
+    B -- No --> E1[Return Validation Error]
 
-    C -- No --> R1[Reject Response]
+    B -- Yes --> N[Normalize Request]
+    N --> C[Build Routing Context]
+    C --> O{Override Present?}
 
-    C -- Yes --> N[Normalize Request and Build Routing Context]
-    N --> O{Explicit Model or Route Override?}
+    O -- Yes --> P{Override Authorized and Compatible?}
+    P -- No --> E2[Return Policy Error]
+    P -- Yes --> PL[Apply Route Plugins]
 
-    O -- Authorized --> P{Capability and Policy Pass?}
-    P -- No --> R2[Reject Response]
-    P -- Yes --> H[Build RouteDecision and Handoff]
+    O -- No --> S[Extract Routing Signals]
+    S --> R[Evaluate Decision Rules]
+    R --> T[Build Candidate Pool Set]
+    T --> G{Target Pool Selected?}
+    G -- No --> E3[Return No Route Error]
+    G -- Yes --> PL
 
-    O -- No --> S[Extract Signals]
-    S --> D{Decision Matched?}
-    D -- No --> R3[Reject Response]
-
-    D -- Yes --> F[Build Candidate Pool Set]
-    F --> G{RouteDecision Selected?}
-    G -- No --> R4[Reject Response]
-
-    G -- Yes --> PL[Run Plugins]
-    PL --> H[Build RouteDecision and Handoff]
-    H --> LB[Forward to ASE LLM Load Balancer]
+    PL --> D[Emit RouteDecision]
+    D --> H[Handoff to ASE LLM Load Balancer]
 ```
 
-### Major LLM Response Processing Flow
+The request path MUST normalize the inbound payload into a canonical routing context before semantic selection begins. When an explicit model or route override is present, the override MAY bypass rule evaluation, but it MUST still pass authorization, capability, and policy compatibility checks. When no override applies, the router MUST extract routing signals, evaluate decision rules, derive a legal candidate pool set, and emit a single explainable `RouteDecision` for downstream scheduling.
+
+### Semantic Router Response and Post-Processing Path
 
 ```mermaid
-flowchart TD
-    A[LLM Response Received] --> B{Request Context Found?}
+flowchart LR
+    A[Receive Downstream Response] --> B{Request Context Correlated?}
+    B -- No --> X[Drop or Apply Error Policy]
 
-    B -- No --> DROP[Drop or Bypass]
-
-    B -- Yes --> C{Post Plugins Enabled?}
-    C -- No --> F[Return Response]
-
-    C -- Yes --> D[Update Session Metadata]
-    D --> E[Add Audit Trace and Semantic Cache]
-    E --> F[Return Response]
+    B -- Yes --> P{Post-Response Plugins Enabled?}
+    P -- No --> R[Return Response]
+    P -- Yes --> S[Update Session Metadata]
+    S --> T[Write Audit Trace]
+    T --> C[Update Semantic Cache]
+    C --> R[Return Response]
 ```
+
+The response path begins only after the downstream response has been correlated with the original request context. If no valid correlation exists, the router MUST drop the response or apply implementation-specific error policy; it MUST NOT attach post-processing state to an unrelated request. Post-response plugins MAY update session continuity metadata, audit trace state, and semantic cache entries before the response is returned to the caller.
 
 ### LLM Listener
 
