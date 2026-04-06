@@ -1,506 +1,181 @@
-<svg data-canvas-bg='{"type":"color","value":"#ffffff"}' xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="1720" height="968" viewBox="0 0 1720 968" xml:space="preserve">
-  <desc>
-    默认作品 - 来自易点SVG编辑器
-  </desc>
-  <defs>
-  </defs>
-  <g transform="matrix(1 0 0 0.94 662.91 334.24)" id="obj-2"  >
-    <path style="stroke: rgb(0,0,0); stroke-width: 2; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(255,255,255); fill-rule: nonzero; opacity: 1;" vector-effect="non-scaling-stroke"  transform=" translate(-652.6, -353.79)" d="M 188.65000000000003 95.49000000000001 C 497.95 95.49000000000001 807.25 95.49000000000001 1116.55 95.49000000000001 C 1126.4911254964 95.49000000000001 1134.55 103.54887450360002 1134.55 113.49000000000001 L 1134.55 369.5744097698521 L 1134.55 594.09 C 1134.55 604.0311254964 1126.4911254964 612.09 1116.55 612.09 C 807.25 612.09 497.95000000000005 612.09 188.65000000000003 612.09 C 178.70887450360004 612.09 170.65000000000003 604.0311254964 170.65000000000003 594.09 C 170.65000000000003 433.89 170.65000000000003 273.69 170.65000000000003 113.49000000000001 C 170.65000000000003 103.54887450360002 178.70887450360004 95.49000000000001 188.65000000000003 95.49000000000001 Z" stroke-linecap="round" />
-  </g>
-  <g transform="matrix(0.63 0 0 0.63 649.87 115.41)" style="" id="obj-3"  >
-    <text xml:space="preserve" font-family="Helvetica, Arial, sans-serif" font-size="28" font-style="normal" font-weight="700" style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(0,0,0); fill-rule: nonzero; opacity: 1; white-space: pre;" >
-      <tspan x="-122.92" y="8.8" >
-        ASE LLM Gateway
-      </tspan>
-    </text>
-  </g>
-  <g transform="matrix(0.63 0 0 0.63 123.7 321.3)" id="obj-7"  >
-    <rect style="stroke: rgb(0,0,0); stroke-width: 2; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(255,255,255); fill-rule: nonzero; opacity: 1;"  x="-55" y="-28" rx="12" ry="12" width="110" height="56" />
-  </g>
-  <g transform="matrix(0.63 0 0 0.63 123.61 322.03)" style="" id="obj-8"  >
-    <text xml:space="preserve" font-family="Helvetica, Arial, sans-serif" font-size="15" font-style="normal" font-weight="600" style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(0,0,0); fill-rule: nonzero; opacity: 1; white-space: pre;" >
-      <tspan x="-34.17" y="4.71" >
-        LLM User
-      </tspan>
-    </text>
-  </g>
-  <g transform="matrix(0.63 0 0 0.63 271.04 321.46)" id="obj-9"  >
-    <rect style="stroke: rgb(0,0,0); stroke-width: 2; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(255,255,255); fill-rule: nonzero; opacity: 1;"  x="-110" y="-70" rx="14" ry="14" width="220" height="140" />
-  </g>
-  <g transform="matrix(0.63 0 0 0.63 270.95 293.51)" style="" id="obj-10"  >
-    <text xml:space="preserve" font-family="Helvetica, Arial, sans-serif" font-size="20" font-style="normal" font-weight="700" style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(0,0,0); fill-rule: nonzero; opacity: 1; white-space: pre;" >
-      <tspan x="-87.24" y="6.28" >
-        Gateway Frontend
-      </tspan>
-    </text>
-  </g>
-  <g transform="matrix(0.63 0 0 0.63 270.7 313.65)" style="" id="obj-11"  >
-    <text xml:space="preserve" font-family="Helvetica, Arial, sans-serif" font-size="13" font-style="normal" font-weight="normal" style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(0,0,0); fill-rule: nonzero; opacity: 1; white-space: pre;" >
-      <tspan x="-23.12" y="4.08" >
-        Listener
-      </tspan>
-    </text>
-  </g>
-  <g transform="matrix(0.63 0 0 0.63 270.72 327.43)" style="" id="obj-12"  >
-    <text xml:space="preserve" font-family="Helvetica, Arial, sans-serif" font-size="13" font-style="normal" font-weight="normal" style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(0,0,0); fill-rule: nonzero; opacity: 1; white-space: pre;" >
-      <tspan x="-29.62" y="4.08" >
-        REST API
-      </tspan>
-    </text>
-  </g>
-  <g transform="matrix(0.63 0 0 0.63 270.76 341.2)" style="" id="obj-13"  >
-    <text xml:space="preserve" font-family="Helvetica, Arial, sans-serif" font-size="13" font-style="normal" font-weight="normal" style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(0,0,0); fill-rule: nonzero; opacity: 1; white-space: pre;" >
-      <tspan x="-37.21" y="4.08" >
-        Req Security
-      </tspan>
-    </text>
-  </g>
-  <g transform="matrix(0.63 0 0 0.63 179.96 321.18)" id="obj-14"  >
-    <path style="stroke: rgb(0,0,0); stroke-width: 2.2; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: none; fill-rule: nonzero; opacity: 1;"  transform=" translate(-185, -398)" d="M 150 398 L 220 398" stroke-linecap="round" />
-  </g>
-  <g transform="matrix(1 0 0 1 629.15 332.75)" id="obj-18"  >
-    <rect style="stroke: rgb(0,0,0); stroke-width: 2; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(255,255,255); fill-rule: nonzero; opacity: 1;"  x="-252" y="-188.73" rx="18" ry="18" width="504" height="377.46" />
-  </g>
-  <g transform="matrix(0.63 0 0 0.63 642.02 164.86)" style="" id="obj-19"  >
-    <text xml:space="preserve" font-family="Helvetica, Arial, sans-serif" font-size="24" font-style="normal" font-weight="700" style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(0,0,0); fill-rule: nonzero; opacity: 1; white-space: pre;" >
-      <tspan x="-123.35" y="7.54" >
-        LLM Semantic Router
-      </tspan>
-    </text>
-  </g>
-  <g transform="matrix(1 0 0 1 449.75 307.32)" id="obj-22"  >
-    <rect style="stroke: rgb(0,0,0); stroke-width: 2; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(255,255,255); fill-rule: nonzero; opacity: 1;"  x="-47.25" y="-61.235" rx="12" ry="12" width="94.5" height="122.47" />
-  </g>
-  <g transform="matrix(0.63 0 0 0.63 450.19 272.7)" style="" id="obj-23"  >
-    <text xml:space="preserve" font-family="Helvetica, Arial, sans-serif" font-size="17" font-style="normal" font-weight="700" style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(0,0,0); fill-rule: nonzero; opacity: 1; white-space: pre;" >
-      <tspan x="-25.5" y="-5.8" >
-        Signal
-      </tspan>
-      <tspan x="-41.57" y="16.48" >
-        Extraction
-      </tspan>
-    </text>
-  </g>
-  <g transform="matrix(0.63 0 0 0.63 452.17 330.94)" style="" id="obj-25"  >
-    <text xml:space="preserve" font-family="Helvetica, Arial, sans-serif" font-size="13" font-style="normal" font-weight="normal" style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(0,0,0); fill-rule: nonzero; opacity: 1; white-space: pre;" >
-      <tspan x="-61.67" y="4.08" >
-        keyword | embedding
-      </tspan>
-    </text>
-  </g>
-  <g transform="matrix(0.63 0 0 0.63 449.25 342.03)" style="" id="obj-26"  >
-    <text xml:space="preserve" font-family="Helvetica, Arial, sans-serif" font-size="12" font-style="normal" font-weight="normal" style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(0,0,0); fill-rule: nonzero; opacity: 1; white-space: pre;" >
-      <tspan x="-51.13" y="3.77" >
-        kNN | PII | jailbreak
-      </tspan>
-    </text>
-  </g>
-  <g transform="matrix(1 0 0 1 568.7 307.32)" id="obj-27"  >
-    <rect style="stroke: rgb(0,0,0); stroke-width: 2; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(255,255,255); fill-rule: nonzero; opacity: 1;"  x="-47.25" y="-61.23" rx="12" ry="12" width="94.5" height="122.46" />
-  </g>
-  <g transform="matrix(0.63 0 0 0.63 568.17 292.85)" style="" id="obj-28"  >
-    <text xml:space="preserve" font-family="Helvetica, Arial, sans-serif" font-size="17" font-style="normal" font-weight="700" style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(0,0,0); fill-rule: nonzero; opacity: 1; white-space: pre;" >
-      <tspan x="-41.56" y="5.34" >
-        Projection
-      </tspan>
-    </text>
-  </g>
-  <g transform="matrix(0.63 0 0 0.63 568.21 307.87)" style="" id="obj-29"  >
-    <text xml:space="preserve" font-family="Helvetica, Arial, sans-serif" font-size="17" font-style="normal" font-weight="700" style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(0,0,0); fill-rule: nonzero; opacity: 1; white-space: pre;" >
-      <tspan x="-52.88" y="5.34" >
-        Coordination
-      </tspan>
-    </text>
-  </g>
-  <g transform="matrix(0.63 0 0 0.63 568.16 330.13)" style="" id="obj-30"  >
-    <text xml:space="preserve" font-family="Helvetica, Arial, sans-serif" font-size="12" font-style="normal" font-weight="normal" style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(0,0,0); fill-rule: nonzero; opacity: 1; white-space: pre;" >
-      <tspan x="-40.91" y="3.77" >
-        partition | score
-      </tspan>
-    </text>
-  </g>
-  <g transform="matrix(0.63 0 0 0.63 568.21 342.03)" style="" id="obj-31"  >
-    <text xml:space="preserve" font-family="Helvetica, Arial, sans-serif" font-size="12" font-style="normal" font-weight="normal" style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(0,0,0); fill-rule: nonzero; opacity: 1; white-space: pre;" >
-      <tspan x="-53.26" y="3.77" >
-        mapping | continuity
-      </tspan>
-    </text>
-  </g>
-  <g transform="matrix(1 0 0 1 700.26 307.32)" id="obj-32"  >
-    <rect style="stroke: rgb(0,0,0); stroke-width: 2; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(255,255,255); fill-rule: nonzero; opacity: 1;"  x="-59.85" y="-61.23" rx="12" ry="12" width="119.7" height="122.46" />
-  </g>
-  <g transform="matrix(0.63 0 0 0.63 699.74 292.85)" style="" id="obj-33"  >
-    <text xml:space="preserve" font-family="Helvetica, Arial, sans-serif" font-size="17" font-style="normal" font-weight="700" style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(0,0,0); fill-rule: nonzero; opacity: 1; white-space: pre;" >
-      <tspan x="-66.12" y="5.34" >
-        Decision Engine
-      </tspan>
-    </text>
-  </g>
-  <g transform="matrix(0.63 0 0 0.63 699.74 321.37)" style="" id="obj-34"  >
-    <text xml:space="preserve" font-family="Helvetica, Arial, sans-serif" font-size="12" font-style="normal" font-weight="normal" style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(0,0,0); fill-rule: nonzero; opacity: 1; white-space: pre;" >
-      <tspan x="-67.25" y="3.77" >
-        modelRefs | legal set F(r)
-      </tspan>
-    </text>
-  </g>
-  <g transform="matrix(0.63 0 0 0.63 699.82 333.26)" style="" id="obj-35"  >
-    <text xml:space="preserve" font-family="Helvetica, Arial, sans-serif" font-size="12" font-style="normal" font-weight="normal" style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(0,0,0); fill-rule: nonzero; opacity: 1; white-space: pre;" >
-      <tspan x="-85.7" y="3.77" >
-        static | AutoMix | Elo | RouterDC
-      </tspan>
-    </text>
-  </g>
-  <g transform="matrix(0.63 0 0 0.63 699.71 345.16)" style="" id="obj-36"  >
-    <text xml:space="preserve" font-family="Helvetica, Arial, sans-serif" font-size="12" font-style="normal" font-weight="normal" style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(0,0,0); fill-rule: nonzero; opacity: 1; white-space: pre;" >
-      <tspan x="-58.58" y="3.77" >
-        hybrid | latency-aware
-      </tspan>
-    </text>
-  </g>
-  <g transform="matrix(1 0 0 1 825.36 307.32)" id="obj-37"  >
-    <rect style="stroke: rgb(0,0,0); stroke-width: 2; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(255,255,255); fill-rule: nonzero; opacity: 1;"  x="-40.95" y="-61.23" rx="12" ry="12" width="81.9" height="122.46" />
-  </g>
-  <g transform="matrix(0.63 0 0 0.63 824.8 292.85)" style="" id="obj-38"  >
-    <text xml:space="preserve" font-family="Helvetica, Arial, sans-serif" font-size="17" font-style="normal" font-weight="700" style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(0,0,0); fill-rule: nonzero; opacity: 1; white-space: pre;" >
-      <tspan x="-25.97" y="5.34" >
-        Plugin
-      </tspan>
-    </text>
-  </g>
-  <g transform="matrix(0.63 0 0 0.63 824.79 307.87)" style="" id="obj-39"  >
-    <text xml:space="preserve" font-family="Helvetica, Arial, sans-serif" font-size="17" font-style="normal" font-weight="700" style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(0,0,0); fill-rule: nonzero; opacity: 1; white-space: pre;" >
-      <tspan x="-23.61" y="5.34" >
-        Chain
-      </tspan>
-    </text>
-  </g>
-  <g transform="matrix(0.63 0 0 0.63 824.85 330.13)" style="" id="obj-40"  >
-    <text xml:space="preserve" font-family="Helvetica, Arial, sans-serif" font-size="12" font-style="normal" font-weight="normal" style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(0,0,0); fill-rule: nonzero; opacity: 1; white-space: pre;" >
-      <tspan x="-39.02" y="3.77" >
-        RouteDecision
-      </tspan>
-    </text>
-  </g>
-  <g transform="matrix(0.63 0 0 0.63 824.95 342.03)" style="" id="obj-41"  >
-    <text xml:space="preserve" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="10.5" font-style="normal" font-weight="normal" style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(0,0,0); fill-rule: nonzero; opacity: 1; white-space: pre;" >
-      <tspan x="0" y="3.77" >
-        target_pool | confidence
-      </tspan>
-    </text>
-  </g>
-  <g transform="matrix(0.63 0 0 0.63 370.98 321.18)" id="obj-42"  >
-    <path style="stroke: rgb(0,0,0); stroke-width: 2.2; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: none; fill-rule: nonzero; opacity: 1;"  transform=" translate(-490, -398)" d="M 440 398 L 500 398 L 500 398 L 540 398" stroke-linecap="round" />
-  </g>
-  <g transform="matrix(0.63 0 0 0.63 508.6 321.18)" id="obj-43"  >
-    <path style="stroke: rgb(0,0,0); stroke-width: 2.2; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: none; fill-rule: nonzero; opacity: 1;"  transform=" translate(-710, -398)" d="M 690 398 L 730 398" stroke-linecap="round" />
-  </g>
-  <g transform="matrix(0.63 0 0 0.63 627.56 321.18)" id="obj-44"  >
-    <path style="stroke: rgb(0,0,0); stroke-width: 2.2; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: none; fill-rule: nonzero; opacity: 1;"  transform=" translate(-900, -398)" d="M 880 398 L 920 398" stroke-linecap="round" />
-  </g>
-  <g transform="matrix(0.63 0 0 0.63 771.56 321.18)" id="obj-45"  >
-    <path style="stroke: rgb(0,0,0); stroke-width: 2.2; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: none; fill-rule: nonzero; opacity: 1;"  transform=" translate(-1130, -398)" d="M 1110 398 L 1150 398" stroke-linecap="round" />
-  </g>
-  <g transform="matrix(0.63 0 0 0.63 628.89 429.09)" id="obj-46"  >
-    <rect style="stroke: rgb(0,0,0); stroke-width: 1.5; stroke-dasharray: 7 5; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(255,255,255); fill-rule: nonzero; opacity: 1;"  x="-360" y="-55" rx="14" ry="14" width="720" height="110" />
-  </g>
-  <g transform="matrix(0.63 0 0 0.63 457.92 409.93)" style="" id="obj-47"  >
-    <text xml:space="preserve" font-family="Helvetica, Arial, sans-serif" font-size="17" font-style="normal" font-weight="700" style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(0,0,0); fill-rule: nonzero; opacity: 1; white-space: pre;" >
-      <tspan x="-53.84" y="5.34" >
-        Plugin Fabric
-      </tspan>
-    </text>
-  </g>
-  <g transform="matrix(0.63 0 0 0.63 446.88 426.35)" style="" id="obj-48"  >
-    <text xml:space="preserve" font-family="Helvetica, Arial, sans-serif" font-size="13" font-style="normal" font-weight="normal" style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(0,0,0); fill-rule: nonzero; opacity: 1; white-space: pre;" >
-      <tspan x="-26.37" y="4.08" >
-        pre-route
-      </tspan>
-    </text>
-  </g>
-  <g transform="matrix(0.63 0 0 0.63 632.82 426.35)" style="" id="obj-49"  >
-    <text xml:space="preserve" font-family="Helvetica, Arial, sans-serif" font-size="13" font-style="normal" font-weight="normal" style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(0,0,0); fill-rule: nonzero; opacity: 1; white-space: pre;" >
-      <tspan x="-38.3" y="4.08" >
-        post-decision
-      </tspan>
-    </text>
-  </g>
-  <g transform="matrix(0.63 0 0 0.63 800.56 426.35)" style="" id="obj-50"  >
-    <text xml:space="preserve" font-family="Helvetica, Arial, sans-serif" font-size="13" font-style="normal" font-weight="normal" style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(0,0,0); fill-rule: nonzero; opacity: 1; white-space: pre;" >
-      <tspan x="-41.19" y="4.08" >
-        post-response
-      </tspan>
-    </text>
-  </g>
-  <g transform="matrix(0.63 0 0 0.63 447.68 448.96)" id="obj-51"  >
-    <rect style="stroke: rgb(0,0,0); stroke-width: 1.5; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(255,255,255); fill-rule: nonzero; opacity: 1;"  x="-52.5" y="-14" rx="8" ry="8" width="105" height="28" />
-  </g>
-  <g transform="matrix(0.63 0 0 0.63 447.65 449.09)" style="" id="obj-52"  >
-    <text xml:space="preserve" font-family="Helvetica, Arial, sans-serif" font-size="12" font-style="normal" font-weight="normal" style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(0,0,0); fill-rule: nonzero; opacity: 1; white-space: pre;" >
-      <tspan x="-42.02" y="3.77" >
-        semantic-cache
-      </tspan>
-    </text>
-  </g>
-  <g transform="matrix(0.63 0 0 0.63 518.07 448.96)" id="obj-53"  >
-    <rect style="stroke: rgb(0,0,0); stroke-width: 1.5; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(255,255,255); fill-rule: nonzero; opacity: 1;"  x="-40" y="-14" rx="8" ry="8" width="80" height="28" />
-  </g>
-  <g transform="matrix(0.63 0 0 0.63 517.94 449.09)" style="" id="obj-54"  >
-    <text xml:space="preserve" font-family="Helvetica, Arial, sans-serif" font-size="12" font-style="normal" font-weight="normal" style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(0,0,0); fill-rule: nonzero; opacity: 1; white-space: pre;" >
-      <tspan x="-6" y="3.77" >
-        pii
-      </tspan>
-    </text>
-  </g>
-  <g transform="matrix(0.63 0 0 0.63 583.83 448.96)" id="obj-55"  >
-    <rect style="stroke: rgb(0,0,0); stroke-width: 1.5; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(255,255,255); fill-rule: nonzero; opacity: 1;"  x="-45" y="-14" rx="8" ry="8" width="90" height="28" />
-  </g>
-  <g transform="matrix(0.63 0 0 0.63 583.74 449.09)" style="" id="obj-56"  >
-    <text xml:space="preserve" font-family="Helvetica, Arial, sans-serif" font-size="12" font-style="normal" font-weight="normal" style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(0,0,0); fill-rule: nonzero; opacity: 1; white-space: pre;" >
-      <tspan x="-22.34" y="3.77" >
-        jailbreak
-      </tspan>
-    </text>
-  </g>
-  <g transform="matrix(0.63 0 0 0.63 662.13 448.96)" id="obj-57"  >
-    <rect style="stroke: rgb(0,0,0); stroke-width: 1.5; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(255,255,255); fill-rule: nonzero; opacity: 1;"  x="-55" y="-14" rx="8" ry="8" width="110" height="28" />
-  </g>
-  <g transform="matrix(0.63 0 0 0.63 662.07 449.09)" style="" id="obj-58"  >
-    <text xml:space="preserve" font-family="Helvetica, Arial, sans-serif" font-size="12" font-style="normal" font-weight="normal" style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(0,0,0); fill-rule: nonzero; opacity: 1; white-space: pre;" >
-      <tspan x="-41.01" y="3.77" >
-        system_prompt
-      </tspan>
-    </text>
-  </g>
-  <g transform="matrix(0.63 0 0 0.63 746.67 448.96)" id="obj-59"  >
-    <rect style="stroke: rgb(0,0,0); stroke-width: 1.5; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(255,255,255); fill-rule: nonzero; opacity: 1;"  x="-60" y="-14" rx="8" ry="8" width="120" height="28" />
-  </g>
-  <g transform="matrix(0.63 0 0 0.63 746.62 449.09)" style="" id="obj-60"  >
-    <text xml:space="preserve" font-family="Helvetica, Arial, sans-serif" font-size="12" font-style="normal" font-weight="normal" style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(0,0,0); fill-rule: nonzero; opacity: 1; white-space: pre;" >
-      <tspan x="-45.03" y="3.77" >
-        header_mutation
-      </tspan>
-    </text>
-  </g>
-  <g transform="matrix(0.63 0 0 0.63 821.73 448.96)" id="obj-61"  >
-    <rect style="stroke: rgb(0,0,0); stroke-width: 1.5; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(255,255,255); fill-rule: nonzero; opacity: 1;"  x="-40" y="-14" rx="8" ry="8" width="80" height="28" />
-  </g>
-  <g transform="matrix(0.63 0 0 0.63 821.68 449.09)" style="" id="obj-62"  >
-    <text xml:space="preserve" font-family="Helvetica, Arial, sans-serif" font-size="12" font-style="normal" font-weight="normal" style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(0,0,0); fill-rule: nonzero; opacity: 1; white-space: pre;" >
-      <tspan x="-28.02" y="3.77" >
-        trace/audit
-      </tspan>
-    </text>
-  </g>
-  <g transform="matrix(0.63 0 0 0.63 824.7 381.37)" id="obj-63"  >
-    <path style="stroke: rgb(0,0,0); stroke-width: 2.2; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: none; fill-rule: nonzero; opacity: 1;"  transform=" translate(-1215, -494)" d="M 1215 473 L 1215 515" stroke-linecap="round" />
-  </g>
-  <g transform="matrix(0.63 0 0 0.63 628.89 489.67)" id="obj-64"  >
-    <rect style="stroke: rgb(0,0,0); stroke-width: 1.5; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(255,255,255); fill-rule: nonzero; opacity: 1;"  x="-360" y="-17" rx="10" ry="10" width="720" height="34" />
-  </g>
-  <g transform="matrix(0.63 0 0 0.63 504.1 490.21)" style="" id="obj-65"  >
-    <text xml:space="preserve" font-family="Helvetica, Arial, sans-serif" font-size="13" font-style="normal" font-weight="normal" style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(0,0,0); fill-rule: nonzero; opacity: 1; white-space: pre;" >
-      <tspan x="-137.07" y="4.08" >
-        Feedback Loop: rating | ReMoM | cache update
-      </tspan>
-    </text>
-  </g>
-  <g transform="matrix(0.63 0 0 0.63 904.5 361.97)" style="" id="obj-80"  >
-    <text xml:space="preserve" font-family="Helvetica, Arial, sans-serif" font-size="13" font-style="normal" font-weight="normal" style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(0,0,0); fill-rule: nonzero; opacity: 1; white-space: pre;" >
-      <tspan x="-17.34" y="-4.44" >
-        Route
-      </tspan>
-      <tspan x="-24.93" y="12.6" >
-        Decision
-      </tspan>
-    </text>
-  </g>
-  <g transform="matrix(0.63 0 0 0.63 145.45 439.76)" style="" id="obj-92"  >
-    <text xml:space="preserve" font-family="Helvetica, Arial, sans-serif" font-size="13" font-style="normal" font-weight="normal" style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(0,0,0); fill-rule: nonzero; opacity: 1; white-space: pre;" >
-      <tspan x="-29.27" y="4.08" >
-        Response
-      </tspan>
-    </text>
-  </g>
-  <g transform="matrix(1 0 0 1 271.04 440.57)" id="obj-97"  >
-    <path style="stroke: rgb(0,0,0); stroke-width: 2; stroke-dasharray: none; stroke-linecap: round; stroke-dashoffset: 0; stroke-linejoin: round; stroke-miterlimit: 4; fill: none; fill-rule: nonzero; opacity: 1;" vector-effect="non-scaling-stroke"  transform=" translate(-271.04, -440.57)" d="M 270.67 515.58 L 270.67 491.58000000000004 L 271.04 491.58000000000004 L 271.04 365.56000000000006 M 271.04 365.56000000000006 L 277.1143723476458 378.1735641506339 M 271.04 365.56000000000006 L 264.9656276523542 378.1735641506339" stroke-linecap="round" />
-  </g>
-  <g transform="matrix(1 0 0 1 1000.27 475.41)" id="group-3"  >
-    <g style=""   >
-      <g transform="matrix(1 0 0 1 0 0)" id="obj-75"  >
-        <rect style="stroke: rgb(0,0,0); stroke-width: 2; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(255,255,255); fill-rule: nonzero; opacity: 1;"  x="-78.75" y="-34.65" rx="14" ry="14" width="157.5" height="69.3" />
-      </g>
-      <g transform="matrix(1 0 0 1 0 0)" id="group-2"  >
-        <g style=""   >
-          <g transform="matrix(0.63 0 0 0.63 0 -15.71)" style="" id="obj-76"  >
-            <text xml:space="preserve" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="18" font-style="normal" font-weight="700" style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(0,0,0); fill-rule: nonzero; opacity: 1; white-space: pre;" >
-              <tspan x="0" y="6.28" >
-                ASE LLM Load Balancer
-              </tspan>
-            </text>
-          </g>
-          <g transform="matrix(0.63 0 0 0.63 -0.06 4.43)" style="" id="obj-77"  >
-            <text xml:space="preserve" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="13" font-style="normal" font-weight="normal" style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(0,0,0); fill-rule: nonzero; opacity: 1; white-space: pre;" >
-              <tspan x="0" y="4.08" >
-                health | load | locality | queue depth
-              </tspan>
-            </text>
-          </g>
-          <g transform="matrix(0.63 0 0 0.63 -0.14 18.2)" style="" id="obj-78"  >
-            <text xml:space="preserve" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="13" font-style="normal" font-weight="normal" style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(0,0,0); fill-rule: nonzero; opacity: 1; white-space: pre;" >
-              <tspan x="0" y="4.08" >
-                runtime endpoint scheduling
-              </tspan>
-            </text>
-          </g>
-        </g>
-      </g>
-    </g>
-  </g>
-  <g transform="matrix(1 0 0 1 1008.38 215.13)" id="group-5"  >
-    <g style=""   >
-      <g transform="matrix(1 0 0 1 0 0)" id="obj-66"  >
-        <rect style="stroke: rgb(0,0,0); stroke-width: 1.5; stroke-dasharray: 7 5; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(255,255,255); fill-rule: nonzero; opacity: 1;"  x="-103.13" y="-91.995" rx="14" ry="14" width="206.26" height="183.99" />
-      </g>
-      <g transform="matrix(0.63 0 0 0.63 3.85 -73.04)" style="" id="obj-67"  >
-        <text xml:space="preserve" font-family="Helvetica, Arial, sans-serif" font-size="20" font-style="normal" font-weight="700" style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(0,0,0); fill-rule: nonzero; opacity: 1; white-space: pre;" >
-          <tspan x="-52.78" y="6.28" >
-            Algorithms
-          </tspan>
-        </text>
-      </g>
-      <g transform="matrix(1 0 0 0.9 0 -24.74)" id="obj-68"  >
-        <path style="stroke: rgb(0,0,0); stroke-width: 1.5; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(255,255,255); fill-rule: nonzero; opacity: 1;" vector-effect="non-scaling-stroke"  transform=" translate(-704.37, -739.92)" d="M 623.5559999999998 711.3741493775933 C 677.4350484345862 711.3741493775933 731.3140968691725 711.3741493775933 785.1931453037589 711.3741493775933 C 790.7159928017588 711.3741493775933 795.1931453037589 715.8513018795934 795.1931453037589 721.3741493775933 C 795.1931453037589 733.737314620818 795.1931453037589 746.1004798640425 795.1931453037589 758.4636451072672 C 795.1931453037589 763.9864926052671 790.7159928017588 768.4636451072672 785.1931453037589 768.4636451072672 C 731.3140968691725 768.4636451072672 677.4350484345862 768.4636451072672 623.5559999999998 768.4636451072672 C 618.0331525019999 768.4636451072672 613.5559999999998 763.9864926052671 613.5559999999998 758.4636451072672 C 613.5559999999998 746.1004798640425 613.5559999999998 733.737314620818 613.5559999999998 721.3741493775933 C 613.5559999999998 715.8513018795934 618.0331525019999 711.3741493775933 623.5559999999998 711.3741493775933 Z" stroke-linecap="round" />
-      </g>
-      <g transform="matrix(0.76 0 0 0.78 -0.69 -37.89)" style="" id="obj-69"  >
-        <text xml:space="preserve" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="17" font-style="normal" font-weight="normal" style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(0,0,0); fill-rule: nonzero; opacity: 1; white-space: pre;" >
-          <tspan x="0" y="5.65" >
-            Retrieval and Ranking
-          </tspan>
-        </text>
-      </g>
-      <g transform="matrix(0.96 0 0 0.96 0.25 -17.65)" style="" id="obj-70"  >
-        <text xml:space="preserve" font-family="Helvetica, Arial, sans-serif" font-size="12" font-style="normal" font-weight="normal" style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(0,0,0); fill-rule: nonzero; opacity: 1; white-space: pre;" >
-          <tspan x="-83.36" y="3.77" >
-            kNN | AutoMix | Elo | RouterDC
-          </tspan>
-        </text>
-      </g>
-      <g transform="matrix(1 0 0 1 -0.69 51.95)" id="obj-71"  >
-        <rect style="stroke: rgb(0,0,0); stroke-width: 1.5; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(255,255,255); fill-rule: nonzero; opacity: 1;"  x="-90.13" y="-32.645" rx="10" ry="10" width="180.26" height="65.29" />
-      </g>
-      <g transform="matrix(0.63 0 0 0.63 0.25 35.3)" style="" id="obj-72"  >
-        <text xml:space="preserve" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="17" font-style="normal" font-weight="normal" style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(0,0,0); fill-rule: nonzero; opacity: 1; white-space: pre;" >
-          <tspan x="0" y="5.65" >
-            Selection and Adaptation
-          </tspan>
-        </text>
-      </g>
-      <g transform="matrix(0.63 0 0 0.63 -3.72 66.04)" style="" id="obj-73"  >
-        <text xml:space="preserve" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="16" font-style="normal" font-weight="normal" style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(0,0,0); fill-rule: nonzero; opacity: 1; white-space: pre;" >
-          <tspan x="0" y="-6.04" >
-            hybrid | latency-aware | confidence
-          </tspan>
-          <tspan x="0" y="17.35" >
-            rating | ReMoM
-          </tspan>
-        </text>
-      </g>
-    </g>
-  </g>
-  <g transform="matrix(1 0 0 1 936.33 373.54)" id="obj-104"  >
-    <path style="stroke: rgb(0,0,0); stroke-width: 2; stroke-dasharray: none; stroke-linecap: round; stroke-dashoffset: 0; stroke-linejoin: round; stroke-miterlimit: 4; fill: none; fill-rule: nonzero; opacity: 1;" vector-effect="non-scaling-stroke"  transform=" translate(-936.33, -373.54)" d="M 866.31 307.32 L 1000.27 307.32 L 1000.27 439.76 M 1000.27 439.76 L 994.1956276523541 427.1464358493661 M 1000.27 439.76 L 1006.3443723476458 427.1464358493661" stroke-linecap="round" />
-  </g>
-  <g transform="matrix(1 0 0 1 1230.92 475.41)" id="group-7"  >
-    <g style=""   >
-      <g transform="matrix(1 0 0 1 0.01 0)" id="obj-81"  >
-        <rect style="stroke: rgb(0,0,0); stroke-width: 2; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(255,255,255); fill-rule: nonzero; opacity: 1;"  x="-51.165" y="-83.91" rx="14" ry="14" width="102.33" height="167.82" />
-      </g>
-      <g transform="matrix(0.63 0 0 0.63 -1.03 -65.87)" style="" id="obj-82"  >
-        <text xml:space="preserve" font-family="Helvetica, Arial, sans-serif" font-size="20" font-style="normal" font-weight="600" style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(0,0,0); fill-rule: nonzero; opacity: 1; white-space: pre;" >
-          <tspan x="-54.26" y="6.28" >
-            Target Pool
-          </tspan>
-        </text>
-      </g>
-      <g transform="matrix(1 0 0 1 0.01 -31.14)" id="group-6"  >
-        <g style=""   >
-          <g transform="matrix(1.74 0 0 1.77 0 0)" id="obj-83"  >
-            <path style="stroke: rgb(0,0,0); stroke-width: 1.5; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(255,255,255); fill-rule: nonzero; opacity: 1;" vector-effect="non-scaling-stroke"  transform=" translate(-920.52, -802.81)" d="M 906.4683300781251 793.363651452282 C 915.8349967447917 793.363651452282 925.2016634114583 793.363651452282 934.568330078125 793.363651452282 C 938.986608076525 793.363651452282 942.568330078125 796.9453734538821 942.568330078125 801.363651452282 C 942.568330078125 802.3303181189488 942.568330078125 803.2969847856155 942.568330078125 804.2636514522821 C 942.568330078125 808.6819294506821 938.986608076525 812.2636514522821 934.568330078125 812.2636514522821 C 925.2016634114583 812.2636514522821 915.8349967447917 812.2636514522821 906.4683300781251 812.2636514522821 C 902.050052079725 812.2636514522821 898.4683300781251 808.6819294506821 898.4683300781251 804.2636514522821 C 898.4683300781251 803.2969847856155 898.4683300781251 802.3303181189488 898.4683300781251 801.363651452282 C 898.4683300781251 796.9453734538821 902.050052079725 793.363651452282 906.4683300781251 793.363651452282 Z" stroke-linecap="round" />
-          </g>
-          <g transform="matrix(0.63 0 0 0.63 0.31 0)" style="" id="obj-84"  >
-            <text xml:space="preserve" font-family="Helvetica, Arial, sans-serif" font-size="18" font-style="normal" font-weight="normal" style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(0,0,0); fill-rule: nonzero; opacity: 1; white-space: pre;" >
-              <tspan x="-32.52" y="5.65" >
-                Model-1
-              </tspan>
-            </text>
-          </g>
-        </g>
-      </g>
-      <g transform="matrix(1 0 0 1 0.01 17.32)" id="obj-106"  >
-        <g style=""   >
-          <g transform="matrix(1.74 0 0 1.77 0 0)" id="obj-107"  >
-            <path style="stroke: rgb(0,0,0); stroke-width: 1.5; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(255,255,255); fill-rule: nonzero; opacity: 1;" vector-effect="non-scaling-stroke"  transform=" translate(-920.52, -802.81)" d="M 906.4683300781251 793.363651452282 C 915.8349967447917 793.363651452282 925.2016634114583 793.363651452282 934.568330078125 793.363651452282 C 938.986608076525 793.363651452282 942.568330078125 796.9453734538821 942.568330078125 801.363651452282 C 942.568330078125 802.3303181189488 942.568330078125 803.2969847856155 942.568330078125 804.2636514522821 C 942.568330078125 808.6819294506821 938.986608076525 812.2636514522821 934.568330078125 812.2636514522821 C 925.2016634114583 812.2636514522821 915.8349967447917 812.2636514522821 906.4683300781251 812.2636514522821 C 902.050052079725 812.2636514522821 898.4683300781251 808.6819294506821 898.4683300781251 804.2636514522821 C 898.4683300781251 803.2969847856155 898.4683300781251 802.3303181189488 898.4683300781251 801.363651452282 C 898.4683300781251 796.9453734538821 902.050052079725 793.363651452282 906.4683300781251 793.363651452282 Z" stroke-linecap="round" />
-          </g>
-          <g transform="matrix(0.63 0 0 0.63 0.31 0)" style="" id="obj-108"  >
-            <text xml:space="preserve" font-family="Helvetica, Arial, sans-serif" font-size="18" font-style="normal" font-weight="normal" style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(0,0,0); fill-rule: nonzero; opacity: 1; white-space: pre;" >
-              <tspan x="-32.52" y="5.65" >
-                Model-1
-              </tspan>
-            </text>
-          </g>
-        </g>
-      </g>
-      <g transform="matrix(1 0 0 1 0.01 63.28)" id="obj-109"  >
-        <g style=""   >
-          <g transform="matrix(1.74 0 0 1.77 0 0)" id="obj-110"  >
-            <path style="stroke: rgb(0,0,0); stroke-width: 1.5; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(255,255,255); fill-rule: nonzero; opacity: 1;" vector-effect="non-scaling-stroke"  transform=" translate(-920.52, -802.81)" d="M 906.4683300781251 793.363651452282 C 915.8349967447917 793.363651452282 925.2016634114583 793.363651452282 934.568330078125 793.363651452282 C 938.986608076525 793.363651452282 942.568330078125 796.9453734538821 942.568330078125 801.363651452282 C 942.568330078125 802.3303181189488 942.568330078125 803.2969847856155 942.568330078125 804.2636514522821 C 942.568330078125 808.6819294506821 938.986608076525 812.2636514522821 934.568330078125 812.2636514522821 C 925.2016634114583 812.2636514522821 915.8349967447917 812.2636514522821 906.4683300781251 812.2636514522821 C 902.050052079725 812.2636514522821 898.4683300781251 808.6819294506821 898.4683300781251 804.2636514522821 C 898.4683300781251 803.2969847856155 898.4683300781251 802.3303181189488 898.4683300781251 801.363651452282 C 898.4683300781251 796.9453734538821 902.050052079725 793.363651452282 906.4683300781251 793.363651452282 Z" stroke-linecap="round" />
-          </g>
-          <g transform="matrix(0.63 0 0 0.63 0.31 0)" style="" id="obj-111"  >
-            <text xml:space="preserve" font-family="Helvetica, Arial, sans-serif" font-size="18" font-style="normal" font-weight="normal" style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(0,0,0); fill-rule: nonzero; opacity: 1; white-space: pre;" >
-              <tspan x="-32.52" y="5.65" >
-                Model-1
-              </tspan>
-            </text>
-          </g>
-        </g>
-      </g>
-    </g>
-  </g>
-  <g transform="matrix(1 0 0 1 1129.39 475.4)" id="obj-113"  >
-    <path style="stroke: rgb(0,0,0); stroke-width: 2; stroke-dasharray: none; stroke-linecap: round; stroke-dashoffset: 0; stroke-linejoin: round; stroke-miterlimit: 4; fill: none; fill-rule: nonzero; opacity: 1;" vector-effect="non-scaling-stroke"  transform=" translate(-1129.39, -475.41)" d="M 1080.02 475.40999999999997 L 1178.76 475.40500000000003 M 1178.76 475.40500000000003 L 1166.1467434598433 481.48001106601413 M 1178.76 475.40500000000003 L 1166.1461282712328 469.33126638629847" stroke-linecap="round" />
-  </g>
-  <g transform="matrix(1 0 0 1 1129.39 475.4)" id="obj-114"  >
-    <path style="stroke: rgb(0,0,0); stroke-width: 2; stroke-dasharray: none; stroke-linecap: round; stroke-dashoffset: 0; stroke-linejoin: round; stroke-miterlimit: 4; fill: none; fill-rule: nonzero; opacity: 1;" vector-effect="non-scaling-stroke"  transform=" translate(-1129.39, -475.41)" d="M 1178.76 475.40500000000003 L 1080.02 475.40999999999997 M 1080.02 475.40999999999997 L 1092.6332565401567 469.33498893398587 M 1080.02 475.40999999999997 L 1092.6338717287672 481.48373361370153" stroke-linecap="round" />
-  </g>
-  <g transform="matrix(1 0 0 1 270.67 534.85)" id="group-8"  >
-    <g style=""   >
-      <g transform="matrix(1 0 0 1 0 0)" id="obj-16"  >
-        <rect style="stroke: rgb(0,0,0); stroke-width: 1.5; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(255,255,255); fill-rule: nonzero; opacity: 1;"  x="-69.3" y="-18.27" rx="12" ry="12" width="138.6" height="36.54" />
-      </g>
-      <g transform="matrix(0.63 0 0 0.63 0 0)" style="" id="obj-17"  >
-        <text xml:space="preserve" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="17" font-style="normal" font-weight="600" style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(0,0,0); fill-rule: nonzero; opacity: 1; white-space: pre;" >
-          <tspan x="0" y="5.65" >
-            Resp Security / Return
-          </tspan>
-        </text>
-      </g>
-    </g>
-  </g>
-  <g transform="matrix(1 0 0 1 670.62 525.99)" id="obj-117"  >
-    <path style="stroke: rgb(0,0,0); stroke-width: 2; stroke-dasharray: none; stroke-linecap: round; stroke-dashoffset: 0; stroke-linejoin: round; stroke-miterlimit: 4; fill: none; fill-rule: nonzero; opacity: 1;" vector-effect="non-scaling-stroke"  transform=" translate(-670.62, -525.99)" d="M 1000.27 511.05999999999995 L 1000.27 535.06 L 364.97 535.06 L 364.97 534.85 L 340.97 534.85 M 340.97 534.85 L 353.5835641506339 528.7756276523542 M 340.97 534.85 L 353.5835641506339 540.9243723476459" stroke-linecap="round" />
-  </g>
-  <g transform="matrix(1 0 0 1 630.68 199.97)" id="group-9"  >
-    <g style=""   >
-      <g transform="matrix(1 0 0 1 0 0)" id="obj-20"  >
-        <path style="stroke: rgb(0,0,0); stroke-width: 1.5; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(255,255,255); fill-rule: nonzero; opacity: 1;" vector-effect="non-scaling-stroke"  transform=" translate(-629.15, -221.97)" d="M 412.34999999999997 210 C 556.8833333333333 210 701.4166666666667 210 845.95 210 C 851.472847498 210 855.95 214.477152502 855.95 220 C 855.95 221.31333333333333 855.95 222.62666666666667 855.95 223.94 C 855.95 229.462847498 851.472847498 233.94 845.95 233.94 C 701.4166666666667 233.94 556.8833333333333 233.94 412.34999999999997 233.94 C 406.827152502 233.94 402.34999999999997 229.462847498 402.34999999999997 223.94 C 402.34999999999997 222.62666666666667 402.34999999999997 221.31333333333333 402.34999999999997 220 C 402.34999999999997 214.477152502 406.827152502 210 412.34999999999997 210 Z" stroke-linecap="round" />
-      </g>
-      <g transform="matrix(0.63 0 0 0.63 -3.11 0)" style="" id="obj-21"  >
-        <text xml:space="preserve" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="16" font-style="normal" font-weight="normal" style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(0,0,0); fill-rule: nonzero; opacity: 1; white-space: pre;" >
-          <tspan x="0" y="5.65" >
-            Control Plane: DSL / JSON | policies | model cards | preferences | sessions | overrides
-          </tspan>
-        </text>
-      </g>
-    </g>
-  </g>
+<svg width="100%" viewBox="0 0 1200 680" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <marker id="arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+    <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </marker>
+  
+</defs>
+
+<!-- ═══════════════════════════════════════
+     OUTER GATEWAY FRAME
+     x=104, y=44, w=896, h=576
+═══════════════════════════════════════ -->
+<rect x="104" y="44" width="896" height="578" rx="20" style="fill:rgb(245, 244, 237);stroke:rgba(31, 30, 29, 0.4);color:rgb(0, 0, 0);stroke-width:1.2px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<!-- Title sits clearly above inner router frame with room to breathe -->
+<text x="552" y="80" text-anchor="middle" dominant-baseline="central" style="fill:rgb(20, 20, 19);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, sans-serif;font-size:16px;font-weight:500;text-anchor:middle;dominant-baseline:central">ASE LLM Gateway</text>
+
+<!-- ═══════════════════════════════════════
+     LLM USER  (left of gateway)
+═══════════════════════════════════════ -->
+<rect x="16" y="296" width="88" height="36" rx="9" style="fill:rgb(255, 255, 255);stroke:rgba(31, 30, 29, 0.4);color:rgb(0, 0, 0);stroke-width:0.8px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<text x="60" y="314" text-anchor="middle" dominant-baseline="central" style="fill:rgb(20, 20, 19);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, sans-serif;font-size:13px;font-weight:500;text-anchor:middle;dominant-baseline:central">LLM User</text>
+
+<!-- ═══════════════════════════════════════
+     GATEWAY FRONTEND
+     x=118, y=224, w=152, h=172
+═══════════════════════════════════════ -->
+<rect x="118" y="224" width="152" height="172" rx="12" style="fill:rgb(255, 255, 255);stroke:rgba(31, 30, 29, 0.4);color:rgb(0, 0, 0);stroke-width:0.8px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<text x="194" y="250" text-anchor="middle" dominant-baseline="central" style="fill:rgb(20, 20, 19);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, sans-serif;font-size:13px;font-weight:500;text-anchor:middle;dominant-baseline:central">Gateway Frontend</text>
+<line x1="130" y1="263" x2="258" y2="263" style="fill:rgb(0, 0, 0);stroke:rgba(31, 30, 29, 0.15);color:rgb(0, 0, 0);stroke-width:0.6px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<text x="194" y="283" text-anchor="middle" dominant-baseline="central" style="fill:rgb(20, 20, 19);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, sans-serif;font-size:13px;font-weight:400;text-anchor:middle;dominant-baseline:central">Listener</text>
+<text x="194" y="305" text-anchor="middle" dominant-baseline="central" style="fill:rgb(20, 20, 19);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, sans-serif;font-size:13px;font-weight:400;text-anchor:middle;dominant-baseline:central">REST API</text>
+<text x="194" y="327" text-anchor="middle" dominant-baseline="central" style="fill:rgb(20, 20, 19);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, sans-serif;font-size:13px;font-weight:400;text-anchor:middle;dominant-baseline:central">Req Security</text>
+<text x="194" y="349" text-anchor="middle" dominant-baseline="central" style="fill:rgb(20, 20, 19);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, sans-serif;font-size:13px;font-weight:400;text-anchor:middle;dominant-baseline:central">Resp Security</text>
+<text x="194" y="371" text-anchor="middle" dominant-baseline="central" style="fill:rgb(20, 20, 19);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, sans-serif;font-size:13px;font-weight:400;text-anchor:middle;dominant-baseline:central"> </text>
+
+<!-- User → Frontend -->
+<line x1="104" y1="314" x2="118" y2="314" marker-end="url(#arr)" style="fill:none;stroke:rgb(115, 114, 108);color:rgb(0, 0, 0);stroke-width:1.2px;stroke-linecap:round;stroke-linejoin:round;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<!-- Frontend → Semantic Router -->
+<line x1="270" y1="310" x2="292" y2="310" marker-end="url(#arr)" style="fill:none;stroke:rgb(115, 114, 108);color:rgb(0, 0, 0);stroke-width:1.2px;stroke-linecap:round;stroke-linejoin:round;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+
+<!-- ═══════════════════════════════════════
+     LLM SEMANTIC ROUTER FRAME
+     x=292, y=100, w=600, h=510
+═══════════════════════════════════════ -->
+<rect x="292" y="100" width="600" height="512" rx="14" style="fill:rgb(245, 244, 237);stroke:rgba(31, 30, 29, 0.4);color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<text x="592" y="128" text-anchor="middle" dominant-baseline="central" style="fill:rgb(20, 20, 19);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, sans-serif;font-size:13px;font-weight:500;text-anchor:middle;dominant-baseline:central">LLM Semantic Router</text>
+
+<!-- Control Plane bar -->
+<rect x="308" y="142" width="568" height="30" rx="7" style="fill:rgb(255, 255, 255);stroke:rgba(31, 30, 29, 0.15);color:rgb(0, 0, 0);stroke-width:0.7px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<text x="592" y="157" text-anchor="middle" dominant-baseline="central" style="fill:rgb(61, 61, 58);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, sans-serif;font-size:11px;font-weight:400;text-anchor:middle;dominant-baseline:central">Control Plane: DSL / JSON  ·  policies  ·  model cards  ·  preferences  ·  sessions  ·  overrides</text>
+
+<!-- ─── 4 MODULE BOXES ───
+     total available: 568px (308→876)
+     4 boxes × 128px + 3 gaps × 16px = 560px  → fits with 4px margin each side
+     x starts: 312, 456, 600, 744   width: 128 each
+─── -->
+
+<!-- 1. Signal Extraction  x=312 w=128 -->
+<rect x="312" y="188" width="128" height="128" rx="9" style="fill:rgb(255, 255, 255);stroke:rgba(31, 30, 29, 0.4);color:rgb(0, 0, 0);stroke-width:0.8px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<text x="376" y="212" text-anchor="middle" dominant-baseline="central" style="fill:rgb(20, 20, 19);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, sans-serif;font-size:13px;font-weight:500;text-anchor:middle;dominant-baseline:central">Signal Extraction</text>
+<line x1="322" y1="225" x2="430" y2="225" style="fill:rgb(0, 0, 0);stroke:rgba(31, 30, 29, 0.15);color:rgb(0, 0, 0);stroke-width:0.6px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<text x="376" y="246" text-anchor="middle" dominant-baseline="central" style="fill:rgb(61, 61, 58);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, sans-serif;font-size:11px;font-weight:400;text-anchor:middle;dominant-baseline:central">keyword · embedding</text>
+<text x="376" y="265" text-anchor="middle" dominant-baseline="central" style="fill:rgb(61, 61, 58);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, sans-serif;font-size:11px;font-weight:400;text-anchor:middle;dominant-baseline:central">kNN · PII · jailbreak</text>
+
+<!-- 2. Projection Coordination  x=456 w=128 -->
+<rect x="456" y="188" width="128" height="128" rx="9" style="fill:rgb(255, 255, 255);stroke:rgba(31, 30, 29, 0.4);color:rgb(0, 0, 0);stroke-width:0.8px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<text x="520" y="208" text-anchor="middle" dominant-baseline="central" style="fill:rgb(20, 20, 19);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, sans-serif;font-size:13px;font-weight:500;text-anchor:middle;dominant-baseline:central">Projection &amp;</text>
+<text x="520" y="226" text-anchor="middle" dominant-baseline="central" style="fill:rgb(20, 20, 19);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, sans-serif;font-size:13px;font-weight:500;text-anchor:middle;dominant-baseline:central">Coordination</text>
+<line x1="466" y1="239" x2="574" y2="239" style="fill:rgb(0, 0, 0);stroke:rgba(31, 30, 29, 0.15);color:rgb(0, 0, 0);stroke-width:0.6px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<text x="520" y="258" text-anchor="middle" dominant-baseline="central" style="fill:rgb(61, 61, 58);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, sans-serif;font-size:11px;font-weight:400;text-anchor:middle;dominant-baseline:central">partition · score</text>
+<text x="520" y="277" text-anchor="middle" dominant-baseline="central" style="fill:rgb(61, 61, 58);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, sans-serif;font-size:11px;font-weight:400;text-anchor:middle;dominant-baseline:central">mapping · continuity</text>
+
+<!-- 3. Decision Engine  x=600 w=144 (slightly wider for content) -->
+<rect x="600" y="188" width="144" height="128" rx="9" style="fill:rgb(255, 255, 255);stroke:rgba(31, 30, 29, 0.4);color:rgb(0, 0, 0);stroke-width:0.8px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<text x="672" y="210" text-anchor="middle" dominant-baseline="central" style="fill:rgb(20, 20, 19);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, sans-serif;font-size:13px;font-weight:500;text-anchor:middle;dominant-baseline:central">Decision Engine</text>
+<line x1="610" y1="223" x2="734" y2="223" style="fill:rgb(0, 0, 0);stroke:rgba(31, 30, 29, 0.15);color:rgb(0, 0, 0);stroke-width:0.6px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<text x="672" y="243" text-anchor="middle" dominant-baseline="central" style="fill:rgb(61, 61, 58);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, sans-serif;font-size:11px;font-weight:400;text-anchor:middle;dominant-baseline:central">modelRefs · legal set F(r)</text>
+<text x="672" y="261" text-anchor="middle" dominant-baseline="central" style="fill:rgb(61, 61, 58);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, sans-serif;font-size:11px;font-weight:400;text-anchor:middle;dominant-baseline:central">AutoMix · Elo · RouterDC</text>
+<text x="672" y="279" text-anchor="middle" dominant-baseline="central" style="fill:rgb(61, 61, 58);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, sans-serif;font-size:11px;font-weight:400;text-anchor:middle;dominant-baseline:central">hybrid · latency-aware</text>
+
+<!-- 4. Plugin Chain  x=760 w=108 -->
+<rect x="760" y="188" width="108" height="128" rx="9" style="fill:rgb(255, 255, 255);stroke:rgba(31, 30, 29, 0.4);color:rgb(0, 0, 0);stroke-width:0.8px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<text x="814" y="210" text-anchor="middle" dominant-baseline="central" style="fill:rgb(20, 20, 19);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, sans-serif;font-size:13px;font-weight:500;text-anchor:middle;dominant-baseline:central">Plugin Chain</text>
+<line x1="770" y1="223" x2="858" y2="223" style="fill:rgb(0, 0, 0);stroke:rgba(31, 30, 29, 0.15);color:rgb(0, 0, 0);stroke-width:0.6px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<text x="814" y="245" text-anchor="middle" dominant-baseline="central" style="fill:rgb(61, 61, 58);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, sans-serif;font-size:11px;font-weight:400;text-anchor:middle;dominant-baseline:central">RouteDecision</text>
+<text x="814" y="264" text-anchor="middle" dominant-baseline="central" style="fill:rgb(61, 61, 58);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, sans-serif;font-size:11px;font-weight:400;text-anchor:middle;dominant-baseline:central">target_pool</text>
+<text x="814" y="283" text-anchor="middle" dominant-baseline="central" style="fill:rgb(61, 61, 58);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, sans-serif;font-size:11px;font-weight:400;text-anchor:middle;dominant-baseline:central">confidence</text>
+
+<!-- module flow arrows -->
+<line x1="440" y1="252" x2="456" y2="252" marker-end="url(#arr)" style="fill:none;stroke:rgb(115, 114, 108);color:rgb(0, 0, 0);stroke-width:1.2px;stroke-linecap:round;stroke-linejoin:round;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<line x1="584" y1="252" x2="600" y2="252" marker-end="url(#arr)" style="fill:none;stroke:rgb(115, 114, 108);color:rgb(0, 0, 0);stroke-width:1.2px;stroke-linecap:round;stroke-linejoin:round;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<line x1="744" y1="252" x2="760" y2="252" marker-end="url(#arr)" style="fill:none;stroke:rgb(115, 114, 108);color:rgb(0, 0, 0);stroke-width:1.2px;stroke-linecap:round;stroke-linejoin:round;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+
+<!-- ─── PLUGIN FABRIC (dashed) ───
+     x=308, y=332, w=568, h=112
+─── -->
+<rect x="308" y="332" width="568" height="112" rx="10" style="fill:rgb(245, 244, 237);stroke:rgba(31, 30, 29, 0.3);color:rgb(0, 0, 0);stroke-width:0.8px;stroke-dasharray:6px, 4px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<text x="320" y="352" dominant-baseline="central" style="fill:rgb(61, 61, 58);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, sans-serif;font-size:11px;font-weight:500;text-anchor:start;dominant-baseline:central">Plugin Fabric</text>
+
+<!-- stage labels -->
+<text x="390" y="370" text-anchor="middle" dominant-baseline="central" style="fill:rgb(61, 61, 58);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, sans-serif;font-size:11px;font-weight:400;text-anchor:middle;dominant-baseline:central">pre-route</text>
+<text x="592" y="370" text-anchor="middle" dominant-baseline="central" style="fill:rgb(61, 61, 58);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, sans-serif;font-size:11px;font-weight:400;text-anchor:middle;dominant-baseline:central">post-decision</text>
+<text x="800" y="370" text-anchor="middle" dominant-baseline="central" style="fill:rgb(61, 61, 58);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, sans-serif;font-size:11px;font-weight:400;text-anchor:middle;dominant-baseline:central">post-response</text>
+
+<!-- plugin chips — 6 chips, total ~552px in 568px container, 8px left margin -->
+<!-- widths: 108, 40, 64, 96, 106, 48  gaps:10 -->
+<rect x="316" y="386" width="108" height="24" rx="5" style="fill:rgb(255, 255, 255);stroke:rgba(31, 30, 29, 0.15);color:rgb(0, 0, 0);stroke-width:0.7px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<text x="370" y="398" text-anchor="middle" dominant-baseline="central" style="fill:rgb(61, 61, 58);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, sans-serif;font-size:11px;font-weight:400;text-anchor:middle;dominant-baseline:central">semantic-cache</text>
+
+<rect x="434" y="386" width="40" height="24" rx="5" style="fill:rgb(255, 255, 255);stroke:rgba(31, 30, 29, 0.15);color:rgb(0, 0, 0);stroke-width:0.7px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<text x="454" y="398" text-anchor="middle" dominant-baseline="central" style="fill:rgb(61, 61, 58);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, sans-serif;font-size:11px;font-weight:400;text-anchor:middle;dominant-baseline:central">pii</text>
+
+<rect x="484" y="386" width="66" height="24" rx="5" style="fill:rgb(255, 255, 255);stroke:rgba(31, 30, 29, 0.15);color:rgb(0, 0, 0);stroke-width:0.7px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<text x="517" y="398" text-anchor="middle" dominant-baseline="central" style="fill:rgb(61, 61, 58);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, sans-serif;font-size:11px;font-weight:400;text-anchor:middle;dominant-baseline:central">jailbreak</text>
+
+<rect x="560" y="386" width="98" height="24" rx="5" style="fill:rgb(255, 255, 255);stroke:rgba(31, 30, 29, 0.15);color:rgb(0, 0, 0);stroke-width:0.7px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<text x="609" y="398" text-anchor="middle" dominant-baseline="central" style="fill:rgb(61, 61, 58);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, sans-serif;font-size:11px;font-weight:400;text-anchor:middle;dominant-baseline:central">system_prompt</text>
+
+<rect x="668" y="386" width="108" height="24" rx="5" style="fill:rgb(255, 255, 255);stroke:rgba(31, 30, 29, 0.15);color:rgb(0, 0, 0);stroke-width:0.7px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<text x="722" y="398" text-anchor="middle" dominant-baseline="central" style="fill:rgb(61, 61, 58);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, sans-serif;font-size:11px;font-weight:400;text-anchor:middle;dominant-baseline:central">header_mutation</text>
+
+<rect x="786" y="386" width="50" height="24" rx="5" style="fill:rgb(255, 255, 255);stroke:rgba(31, 30, 29, 0.15);color:rgb(0, 0, 0);stroke-width:0.7px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<text x="811" y="398" text-anchor="middle" dominant-baseline="central" style="fill:rgb(61, 61, 58);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, sans-serif;font-size:11px;font-weight:400;text-anchor:middle;dominant-baseline:central">trace</text>
+
+<!-- ─── FEEDBACK LOOP ─── -->
+<rect x="308" y="456" width="422" height="24" rx="6" style="fill:rgb(255, 255, 255);stroke:rgba(31, 30, 29, 0.15);color:rgb(0, 0, 0);stroke-width:0.7px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<text x="519" y="468" text-anchor="middle" dominant-baseline="central" style="fill:rgb(61, 61, 58);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, sans-serif;font-size:11px;font-weight:400;text-anchor:middle;dominant-baseline:central">Feedback loop:  rating  ·  ReMoM  ·  cache update</text>
+
+<!-- ─── ALGORITHMS (dashed) ───
+     x=308, y=496, w=568, h=106
+─── -->
+<rect x="308" y="496" width="568" height="106" rx="10" style="fill:rgb(245, 244, 237);stroke:rgba(31, 30, 29, 0.3);color:rgb(0, 0, 0);stroke-width:0.8px;stroke-dasharray:6px, 4px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<text x="592" y="516" text-anchor="middle" dominant-baseline="central" style="fill:rgb(61, 61, 58);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, sans-serif;font-size:11px;font-weight:500;text-anchor:middle;dominant-baseline:central">Algorithms</text>
+
+<rect x="316" y="530" width="264" height="62" rx="7" style="fill:rgb(255, 255, 255);stroke:rgba(31, 30, 29, 0.15);color:rgb(0, 0, 0);stroke-width:0.7px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<text x="448" y="550" text-anchor="middle" dominant-baseline="central" style="fill:rgb(20, 20, 19);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, sans-serif;font-size:13px;font-weight:500;text-anchor:middle;dominant-baseline:central">Retrieval &amp; Ranking</text>
+<text x="448" y="570" text-anchor="middle" dominant-baseline="central" style="fill:rgb(61, 61, 58);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, sans-serif;font-size:11px;font-weight:400;text-anchor:middle;dominant-baseline:central">kNN  ·  AutoMix  ·  Elo  ·  RouterDC</text>
+
+<rect x="596" y="530" width="272" height="62" rx="7" style="fill:rgb(255, 255, 255);stroke:rgba(31, 30, 29, 0.15);color:rgb(0, 0, 0);stroke-width:0.7px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<text x="732" y="550" text-anchor="middle" dominant-baseline="central" style="fill:rgb(20, 20, 19);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, sans-serif;font-size:13px;font-weight:500;text-anchor:middle;dominant-baseline:central">Selection &amp; Adaptation</text>
+<text x="732" y="570" text-anchor="middle" dominant-baseline="central" style="fill:rgb(61, 61, 58);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, sans-serif;font-size:11px;font-weight:400;text-anchor:middle;dominant-baseline:central">hybrid  ·  latency-aware  ·  confidence  ·  ReMoM</text>
+
+<!-- ═══════════════════════════════════════
+     RIGHT COLUMN: LOAD BALANCER + TARGET POOL
+     x=910, inside gateway frame (104+896=1000)
+═══════════════════════════════════════ -->
+
+<!-- "Route Decision" label + arrow from Plugin Chain -->
+<text x="955" y="200" text-anchor="middle" dominant-baseline="central" style="fill:rgb(61, 61, 58);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, sans-serif;font-size:11px;font-weight:400;text-anchor:middle;dominant-baseline:central">Route Decision</text>
+<path d="M868 252 L900 252 L900 280 L920 280" fill="none" marker-end="url(#arr)" style="fill:none;stroke:rgb(115, 114, 108);color:rgb(0, 0, 0);stroke-width:1.2px;stroke-linecap:round;stroke-linejoin:round;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+
+<!-- Load Balancer  x=920, y=258, w=172, h=88 -->
+<rect x="920" y="258" width="172" height="88" rx="10" style="fill:rgb(255, 255, 255);stroke:rgba(31, 30, 29, 0.4);color:rgb(0, 0, 0);stroke-width:0.8px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<text x="1006" y="281" text-anchor="middle" dominant-baseline="central" style="fill:rgb(20, 20, 19);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, sans-serif;font-size:13px;font-weight:500;text-anchor:middle;dominant-baseline:central">ASE LLM</text>
+<text x="1006" y="299" text-anchor="middle" dominant-baseline="central" style="fill:rgb(20, 20, 19);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, sans-serif;font-size:13px;font-weight:500;text-anchor:middle;dominant-baseline:central">Load Balancer</text>
+<line x1="930" y1="311" x2="1082" y2="311" style="fill:rgb(0, 0, 0);stroke:rgba(31, 30, 29, 0.15);color:rgb(0, 0, 0);stroke-width:0.6px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<text x="1006" y="328" text-anchor="middle" dominant-baseline="central" style="fill:rgb(61, 61, 58);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, sans-serif;font-size:11px;font-weight:400;text-anchor:middle;dominant-baseline:central">health · load · locality · queue</text>
+
+<!-- LB → Target Pool -->
+<line x1="1006" y1="346" x2="1006" y2="370" marker-end="url(#arr)" style="fill:none;stroke:rgb(115, 114, 108);color:rgb(0, 0, 0);stroke-width:1.2px;stroke-linecap:round;stroke-linejoin:round;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+
+<!-- Target Pool  x=920, y=370, w=172, h=216 -->
+<rect x="920" y="370" width="172" height="216" rx="10" style="fill:rgb(255, 255, 255);stroke:rgba(31, 30, 29, 0.4);color:rgb(0, 0, 0);stroke-width:0.8px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<text x="1006" y="394" text-anchor="middle" dominant-baseline="central" style="fill:rgb(20, 20, 19);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, sans-serif;font-size:13px;font-weight:500;text-anchor:middle;dominant-baseline:central">Target Pool</text>
+<line x1="930" y1="407" x2="1082" y2="407" style="fill:rgb(0, 0, 0);stroke:rgba(31, 30, 29, 0.15);color:rgb(0, 0, 0);stroke-width:0.6px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+
+<rect x="932" y="418" width="148" height="40" rx="7" style="fill:rgb(255, 255, 255);stroke:rgba(31, 30, 29, 0.15);color:rgb(0, 0, 0);stroke-width:0.7px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<text x="1006" y="438" text-anchor="middle" dominant-baseline="central" style="fill:rgb(20, 20, 19);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, sans-serif;font-size:13px;font-weight:400;text-anchor:middle;dominant-baseline:central">Model-1</text>
+
+<rect x="932" y="466" width="148" height="40" rx="7" style="fill:rgb(255, 255, 255);stroke:rgba(31, 30, 29, 0.15);color:rgb(0, 0, 0);stroke-width:0.7px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<text x="1006" y="486" text-anchor="middle" dominant-baseline="central" style="fill:rgb(20, 20, 19);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, sans-serif;font-size:13px;font-weight:400;text-anchor:middle;dominant-baseline:central">Model-2</text>
+
+<rect x="932" y="514" width="148" height="40" rx="7" style="fill:rgb(255, 255, 255);stroke:rgba(31, 30, 29, 0.15);color:rgb(0, 0, 0);stroke-width:0.7px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<text x="1006" y="534" text-anchor="middle" dominant-baseline="central" style="fill:rgb(20, 20, 19);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, sans-serif;font-size:13px;font-weight:400;text-anchor:middle;dominant-baseline:central">Model-3</text>
+
+<!-- ═══════════════════════════════════════
+     RETURN PATH: Target Pool → Gateway Frontend
+═══════════════════════════════════════ -->
+<path d="M1006 586 L1006 612 L60 612 L60 332 L118 332" fill="none" marker-end="url(#arr)" style="fill:none;stroke:rgb(115, 114, 108);color:rgb(0, 0, 0);stroke-width:1.2px;stroke-linecap:round;stroke-linejoin:round;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<text x="530" y="628" text-anchor="middle" dominant-baseline="central" style="fill:rgb(61, 61, 58);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, sans-serif;font-size:11px;font-weight:400;text-anchor:middle;dominant-baseline:central">response return path</text>
 </svg>
