@@ -235,127 +235,6 @@ Within the current architecture, algorithms fall into two classes:
 - `Selection` algorithms choose one model family or target pool from the legal candidate set.
 - `Loopers` orchestrate multiple models or multiple rounds of inference instead of selecting exactly one winner.
 
-#### Selection
-
-`Selection` determines how the router chooses a single model family or target pool from the legal candidate set produced by `Decision Match`. This class should be used when one route exposes multiple eligible candidates and the system still needs a principled single-winner policy. Typical selection goals include semantic fit, latency minimization, feedback-driven adaptation, cost-quality tradeoff, personalization, and interpretable offline routing.
-
-Representative selection families include:
-
-- `Static` for fixed curated ordering when the route owner already knows the desired preference order.
-- `Latency Aware` when the primary objective is to choose the fastest acceptable candidate from model-level latency metrics.
-- `Router DC` when query-to-model semantic matching should dominate selection.
-- `Elo` when online feedback or pairwise preference data should update ranking over time.
-- `AutoMix` when the route should implement staged cost-quality escalation.
-- `Hybrid` when several ranking signals must be blended into one final utility.
-- `RL Driven` or `GMT Router` when exploration or personalization is a first-class requirement.
-- `KNN`, `KMeans`, `SVM`, or `MLP` when offline learned routing policies are preferred over hand-written scoring logic.
-
-The route-decision algorithm MUST use normalized request context, extracted signals, configured decision rules and candidate pools or `modelRefs`, logical model capabilities and pool mappings, and any applicable continuity or caller preferences. Unlike ASE LLM Load Balancer, semantic routing MUST NOT use backend queue depth, endpoint health, or connection-pool runtime state to choose the target pool.
-
-The decision engine performs constrained selection over the legal candidate set that survives hard filtering. Its purpose is to explain how ASE chooses one semantic target pool or model family, not to expose internal helper-function structure.
-
-```mermaid
-flowchart LR
-    A[Normalized Request Context] --> I[Assemble Decision Inputs]
-    B[Extracted Signal Set] --> I
-    C[Matched Routing Rule] --> I
-    D[Eligible Candidate Pools or modelRefs] --> I
-    E[Caller and Session Preferences] --> I
-
-    I --> S[Score and Rank Legal Candidates]
-    S --> T[Apply Continuity and Tie-Break Rules]
-    T --> G{Target Pool Selected?}
-    G -- No --> X[Return No Route Error]
-    G -- Yes --> R[Emit RouteDecision]
-```
-
-In this flow, the hard-filter stage has already removed infeasible candidates. The decision engine then combines normalized request context, extracted signals, the matched `routing.decisions` rule, the remaining legal candidate pools or `modelRefs`, and any applicable caller into a bounded ranking problem. Continuity handling and tie-break rules MAY influence which legal candidate is selected, but they MUST operate only within the feasible route space.
-
-Supported route-selection strategies MAY include static priority, quality-first selection, cost-aware selection, latency-aware selection based on model-level attributes, and hybrid policy-aware ranking. `Selection` MUST operate only within the feasible route space that survives hard filtering.
-
-For specification and design review, the route decision SHOULD be modeled as constrained selection over legal candidate pools rather than as a chain of implementation helper functions.
-
-Let `r` denote the normalized request context and let `P = {p1, p2, ..., pn}` denote the candidate serving pools derived from the matched routing rule. For each request-pool pair `(r, p)`, the router evaluates two hard-feasibility predicates:
-
-- `capability_feasible(r, p)`: true only when modality, context-window, and required capability constraints are satisfied.
-- `policy_feasible(r, p)`: true only when tenant, compliance, privacy, and abuse-policy constraints are satisfied.
-
-The legal candidate set is therefore:
-
-$$
-F(r) = \{\, p \in P \mid \mathrm{capability\_feasible}(r, p) \wedge \mathrm{policy\_feasible}(r, p) \,\}
-$$
-
-For each `p in F(r)`, the router computes a bounded utility score:
-
-$$
-U(r, p) = w_1 S_{\mathrm{sem}}(r, p) + w_2 S_{\mathrm{cont}}(r, p) + w_3 S_{\mathrm{pref}}(r, p) + w_4 S_{\mathrm{pool}}(r, p)
-$$
-
-$$
-S_{\mathrm{sem}}(r, p) = a_1 s_{\mathrm{keyword}}(r, p) + a_2 s_{\mathrm{embedding}}(r, p) + a_3 s_{\mathrm{domain}}(r, p) + a_4 s_{\mathrm{complexity}}(r, p)
-$$
-
-$$
-S_{\mathrm{cont}}(r, p) \in \{0, 1\}
-$$
-
-`S_cont(r, p)` is `1` when a valid previous session exists and `p` remains valid; otherwise it is `0`.
-
-$$
-S_{\mathrm{pref}}(r, p) = b_1 s_{\mathrm{latency}}(r, p) + b_2 s_{\mathrm{cost}}(r, p) + b_3 s_{\mathrm{quality}}(r, p)
-$$
-
-The selected pool is the maximizer over the legal candidate set:
-
-$$
-p^{*} = \arg \max_{p \in F(r)} U(r, p)
-$$
-
-If `F(r)` is empty, the router MUST return a semantic rejection or an explicitly configured fallback outcome. Once `p*` is selected, the router constructs a `RouteDecision` containing the chosen `route_class`, `target_pool`, `model_family`, and `safety_profile`.
-
-A non-normative reference procedure is shown below:
-
-| Field     | Description                                                                                 |
-| --------- | ------------------------------------------------------------------------------------------- |
-| Algorithm | Constraint-Aware Route Selection                                                            |
-| Inputs    | `r`: normalized request context; `P`: candidate pools derived from the matched routing rule |
-| Output    | `RouteDecision`, or rejection/fallback outcome                                              |
-
-```text
-Procedure:
-1. F <- {}
-2. for each p in P do
-3.     if not capability_feasible(r, p) then
-4.         continue
-5.     end if
-6.     if not policy_feasible(r, p) then
-7.         continue
-8.     end if
-9.     score[p] <- U(r, p)
-10.    F <- F union {p}
-11. end for
-12. if F = {} then
-13.    return reject_or_fallback(r)
-14. end if
-15. p* <- arg max score[p] over p in F
-16. return build_route_decision(r, p*)
-```
-
-This formulation makes the module boundary explicit: hard capability and policy constraints define the feasible set first; semantic, continuity, and preference signals optimize only within that legal set; and the output of the module is a `RouteDecision` rather than a backend endpoint selection. Semantic Router selects the capability pool; Load Balancer selects the concrete serving replica.
-
-#### Loopers
-
-`Loopers` are multi-model orchestration algorithms. They should be used when the correct post-match behavior is not to pick exactly one candidate, but to stage, combine, or iterate across multiple models or multiple rounds of reasoning. Compared with `Selection`, which returns one winner, a looper defines an execution pattern over several candidate calls.
-
-Representative looper families include:
-
-- `Confidence` for small-to-large escalation, where a cheaper or smaller model is tried first and escalation occurs only when confidence is insufficient.
-- `Ratings` for bounded concurrent execution, where several candidates may run within a cap and their outputs are aggregated or rated.
-- `ReMoM` for multi-round parallel reasoning, where breadth, memory, and synthesis are all part of the orchestration policy.
-
-Loopers MAY update thresholds, weights, or preference signals over time, but they MUST NOT override hard capability checks, tenant governance constraints, or the matched decision rule for an individual request.
-
 #### Algorithm Decision Guide
 
 The following decision guide summarizes how algorithm choice should be made after a route has already matched and produced a legal candidate set. It is adapted from the official vLLM Semantic Router algorithm overview and recast here for ASE system design.
@@ -387,6 +266,52 @@ flowchart TD
 ```
 
 At the top level, algorithm selection SHOULD follow one question first: whether the route needs single-winner ranking or multi-model orchestration. Only after that split should the router choose among `Selection` or `Looper` variants according to the dominant operational objective, such as latency, semantic fit, feedback adaptation, personalization, or staged reasoning.
+
+#### Selection
+
+`Selection` determines how the router chooses a single model family or target pool from the legal candidate set produced by `Decision Match`. This class should be used when one route exposes multiple eligible candidates and the system still needs a principled single-winner policy. Typical selection goals include semantic fit, latency minimization, feedback-driven adaptation, cost-quality tradeoff, personalization, and interpretable offline routing.
+
+Representative selection families include:
+
+- `Static` for fixed curated ordering when the route owner already knows the desired preference order.
+- `Latency Aware` when the primary objective is to choose the fastest acceptable candidate from model-level latency metrics.
+- `Router DC` when query-to-model semantic matching should dominate selection.
+- `Elo` when online feedback or pairwise preference data should update ranking over time.
+- `AutoMix` when the route should implement staged cost-quality escalation.
+- `Hybrid` when several ranking signals must be blended into one final utility.
+- `RL Driven` or `GMT Router` when exploration or personalization is a first-class requirement.
+- `KNN`, `KMeans`, `SVM`, or `MLP` when offline learned routing policies are preferred over hand-written scoring logic.
+
+`Selection` MUST operate only on the legal candidate set that survives decision matching and hard policy filtering. Its inputs SHOULD be limited to normalized request context, extracted signals, matched decision outputs, candidate model-family or pool metadata, and any applicable continuity or caller preferences. Unlike ASE LLM Load Balancer, semantic routing MUST NOT use backend queue depth, endpoint health, or connection-pool runtime state to choose the target pool.
+
+```mermaid
+flowchart LR
+    A[Normalized Request Context] --> I[Assemble Decision Inputs]
+    B[Extracted Signal Set] --> I
+    C[Matched Routing Rule] --> I
+    D[Eligible Candidate Pools or modelRefs] --> I
+    E[Caller and Session Preferences] --> I
+
+    I --> S[Score and Rank Legal Candidates]
+    S --> T[Apply Continuity and Tie-Break Rules]
+    T --> G{Target Pool Selected?}
+    G -- No --> X[Return No Route Error]
+    G -- Yes --> R[Emit RouteDecision]
+```
+
+In this flow, the hard-filter stage has already removed infeasible candidates. `Selection` then ranks or orders only the surviving candidates. Continuity handling, preference alignment, and feedback-driven updates MAY influence ranking, but they MUST operate only within the feasible route space. The output of this stage is still a semantic routing artifact such as `target_pool`, `model_family`, or related route metadata; final endpoint dispatch remains the responsibility of ASE LLM Load Balancer.
+
+#### Loopers
+
+`Loopers` are multi-model orchestration algorithms. They should be used when the correct post-match behavior is not to pick exactly one candidate, but to stage, combine, or iterate across multiple models or multiple rounds of reasoning. Compared with `Selection`, which returns one winner, a looper defines an execution pattern over several candidate calls.
+
+Representative looper families include:
+
+- `Confidence` for small-to-large escalation, where a cheaper or smaller model is tried first and escalation occurs only when confidence is insufficient.
+- `Ratings` for bounded concurrent execution, where several candidates may run within a cap and their outputs are aggregated or rated.
+- `ReMoM` for multi-round parallel reasoning, where breadth, memory, and synthesis are all part of the orchestration policy.
+
+Loopers MAY update thresholds, weights, or preference signals over time, but they MUST NOT override hard capability checks, tenant governance constraints, or the matched decision rule for an individual request.
 
 ### Plugins
 
