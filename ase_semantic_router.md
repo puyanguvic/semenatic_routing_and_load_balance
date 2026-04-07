@@ -40,13 +40,13 @@ The `Decision Engine` consumes the outputs of `Signals` and `Projections` togeth
 
 ## Signals
 
-`Signals` is the detection layer of routing. It defines named detectors under `routing.signals`, while `routing.decisions` references those names so request understanding remains reusable and route logic remains readable. In this design, signals answer "what did we detect?" rather than "what route should we take?".
+`Signals` is the request-understanding layer of semantic routing. It converts raw request content, caller metadata, and governance context into explicit evidential features that can be reused by later stages. A signal therefore describes an observed or inferred property of the request, such as topic, modality, complexity, language, safety posture, or user intent. In methodological terms, signals answer "what is present in the request?" rather than "what route should be chosen?".
 
-This layer exists to avoid inlining detection logic into every decision rule. Without signals, lexical matching, policy checks, semantic classification, and safety detection would be duplicated across route rules, making configuration harder to review, audit, and evolve. With named signals, one decision can combine lexical, identity, semantic, and safety evidence while keeping route outcomes separate from detection.
+Separating signals from downstream route selection improves modularity, auditability, and scientific clarity. It avoids duplicating detection logic across multiple route rules, makes it easier to combine heterogeneous evidence sources in one routing graph, and preserves a clean distinction between measurement and action. This separation is especially important in semantic routing, where lexical cues, identity constraints, semantic similarity, safety detectors, and preference inference may all contribute evidence but should not be conflated with the final route outcome.
 
-Signals SHOULD be used when multiple routes need the same detector, when one route must combine different extraction styles, or when the configuration needs a clean boundary between detection, decision logic, algorithms, and plugins. Cross-signal coordination and derived routing bands do not belong in `routing.signals`; exclusive partitions, weighted score aggregation, and named routing bands belong in `routing.projections`.
+Signals SHOULD be used whenever multiple route paths depend on the same detector, whenever one route must combine heterogeneous evidence sources, or whenever the system design requires a clean boundary between detection, projection, decision logic, algorithms, and plugins. Cross-signal aggregation and derived routing bands do not belong in the signal layer; those functions belong in `Projections`.
 
-Signals are grouped by extraction style so that runtime cost and dependency assumptions remain explicit.
+Signals are grouped by extraction style so that dependency assumptions, runtime cost, and operational behavior remain explicit.
 
 ### Heuristic Signals
 
@@ -80,11 +80,11 @@ Learned signals use embeddings or classifier-style detectors and typically rely 
 
 The following design rules SHOULD hold for this section of the routing graph:
 
-- Signals SHOULD remain named and reusable across multiple decisions.
-- Signals SHOULD remain detection-only; route outcomes belong in `routing.decisions`.
-- Cross-signal partitions and derived routing bands SHOULD live in `routing.projections`, not back inside `routing.signals`.
-- Model choice SHOULD remain separate from signals and belong in the algorithm layer.
-- Route-side behavior SHOULD remain separate from signals and belong in plugins.
+- Signals SHOULD remain semantically stable and reusable across multiple routing paths.
+- Signals SHOULD remain detection-oriented; route outcomes belong in later decision stages.
+- Cross-signal partitions, score aggregation, and derived routing bands SHOULD live in `Projections`, not in the signal layer itself.
+- Model or pool choice SHOULD remain separate from signals and belong in the algorithm layer.
+- Route-side execution behavior SHOULD remain separate from signals and belong in plugins.
 
 ## Projections
 
