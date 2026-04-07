@@ -31,7 +31,7 @@ In this document, Semantic Router refers to the stage that selects a legal capab
 
 The ASE Semantic Router is organized as a semantic decision pipeline that transforms an inbound LLM request into a pool-level routing decision before any backend scheduling begins. After request normalization, the request enters the `Signals` stage, where heuristic and learned detectors extract routing evidence such as domain, modality, complexity, safety posture, user intent, and governance constraints. Those raw signals are then consolidated by `Projections` into canonical partitions, scores, and named mappings so that downstream decision logic can evaluate requests against a stable semantic feature set instead of ad hoc prompt text.
 
-At the center of the architecture, the `Decision Engine` performs decision matching against configured `Rules and Policies` and produces the explainable route that is handed to ASE LLM Load Balancer. The engine MAY invoke `Decision Plugins` to apply capability-specific behaviors such as image-generation handling, system-prompt shaping, tool activation, or header/body mutation, and it MAY use `Selector Plugins` such as static, AutoMix, Elo, Router DC, hybrid, latency-aware, or KNN strategies to choose among eligible model families or target pools. `Loopers` such as confidence, rating, and ReMoM provide a closed feedback path for route-quality refinement over time. This separation keeps semantic interpretation, governance, and model-family selection inside the router, while ASE LLM Load Balancer remains responsible for endpoint-level scheduling, health-aware balancing, and dispatch.
+At the center of the architecture, the `Decision Engine` performs decision matching against configured `Rules and Policies` and produces the explainable route that is handed to ASE LLM Load Balancer. The engine MAY invoke `Decision Plugins` to apply capability-specific behaviors such as image-generation handling, system-prompt shaping, tool activation, or header/body mutation, and it MAY call algorithm modules such as `Selection` and `Loopers` to choose among eligible model families or target pools and refine route quality over time. This separation keeps semantic interpretation, governance, and model-family selection inside the router, while ASE LLM Load Balancer remains responsible for endpoint-level scheduling, health-aware balancing, and dispatch.
 
 <div align="center">
 <img src="./assets/ase_semantic_router.svg" alt="ASE Semantic Router Block Diagram" width="1000"/>
@@ -143,60 +143,19 @@ routing:
 
  And finally mapping outputs names of  "support_fast" and "support_escalated" can be referenced in decision engines.
 
-## Routing Context
+## Decision Engine
 
-A routing context is the canonical object used by semantic routing.
+The `Decision Engine` consumes routing context together with the outputs of `Signals` and `Projections`, applies configured rules and policies, performs decision matching over the legal candidate set, invokes `Decision Plugins` and algorithm modules, and emits a formal `RouteDecision`. According to the updated architecture diagram, this part of the document is organized around five concerns: `Decision Match`, `Rules and Policies`, `Decision Plugins`, `Algorithms`, and the output and downstream handoff to ASE LLM Load Balancer.
 
-| Routing Context Class           | Major fields                                                                                                  | Purpose                                             |
-| ------------------------------- | ------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
-| Request Content                 | messages, prompt text, system instructions, tool requirements, multimodal metadata, output format requirement | Describe what the request is asking for             |
-| Control Metadata                | `model`, `routing_hint`, `route_override`, `preference`, `input_tokens_estimate`, debug flags                 | Express caller routing intent or optimization hints |
-| Identity and Governance Context | tenant identity, user class, authorization scope, privacy tags, compliance tags, provider restrictions        | Constrain what the caller is allowed to use         |
+### Rules and Policies
 
-## Model Card
-
-A model card is the route-visible model-family definition used by semantic routing to derive a pool decision.
-
-Each routable semantic entry or model family SHOULD expose an identifier, capability class, target-pool mapping, routing tags, supported capabilities and modalities, context-window limits, optional quality/latency/cost attributes, optional reasoning or LoRA variants, and any governance or tenant restrictions relevant to route selection.
-
-A semantic entry or model family is not a concrete backend endpoint. A target pool MAY map to multiple provider models and downstream replicas, while endpoint health and queue metrics remain outside the ownership of model cards.
-
-## Decision Rule
+#### Decision Rules
 
 A decision rule is the semantic route rule defined in `routing.decisions`.
 
 Each decision rule SHOULD contain a name, priority, typed conditions with logical composition, a candidate `modelRefs` set, a selection algorithm, and optional plugins. Decision rules define the legal route space for a request; they do not select the final backend endpoint.
 
-#### Major Interface Objects
-
-The module boundary consists of four major objects:
-
-| Object            | Owned by          | Major fields                                                                                                           | Purpose                                    |
-| ----------------- | ----------------- | ---------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
-| Request           | Client or gateway | prompt, messages, metadata, identity                                                                                   | Original request entering semantic routing |
-| RouteDecision     | Semantic Router   | `route_class`, `target_pool`, `model_family`, `safety_profile`, `cache_policy`, `routing_confidence`, `fallback_pools` | Formal SR to LB handoff contract           |
-| SchedulingContext | Load Balancer     | pool members, health, load, latency, locality, admission status                                                        | Runtime scheduling state owned by LB only  |
-| DispatchResult    | Load Balancer     | selected endpoint, replica, region, dispatch reason                                                                    | Final execution result after scheduling    |
-
-### Request Normalization
-
-The request normalizer converts inbound OpenAI-compatible API traffic into a canonical routing object consumed by later stages.
-
-ASE Semantic Router SHOULD support the following semantic-routing-aware controls:
-
-| Field                    | Purpose                                                                         | Constraint                                                                            |
-| ------------------------ | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
-| `model=auto`             | Request semantic route selection                                                | Default path for routed traffic                                                       |
-| `model=<explicit-model>` | Request a specific semantic entry model or model family directly                | Still subject to capability and policy validation, then mapped to a legal target pool |
-| `routing_hint`           | Provide a coarse semantic hint such as `code`, `reasoning`, `extract`, `vision` | Advisory only; MUST NOT bypass policy                                                 |
-| `route_override`         | Request a specific capability path or target-pool alias                         | Restricted to authorized callers                                                      |
-| `preference`             | Express latency, cost or quality bias                                           | Optimization input only                                                               |
-| `input_tokens_estimate`  | Provide a caller-side prompt-size estimate                                      | Advisory signal only                                                                  |
-| `debug` or `explain`     | Request routing diagnostics                                                     | Restricted and redacted for trusted callers only                                      |
-
-The precedence order MUST be explicit. Hard capability and policy constraints are evaluated first, authorized explicit model requests or route overrides second, and continuity or optimization preferences only after eligibility is established.
-
-### Hard Constraint and Policy Filter
+#### Hard Constraint and Policy Filter
 
 Before any optimization among candidate pools or model families, the request MUST pass hard capability and policy checks.
 
@@ -217,7 +176,70 @@ flowchart LR
     D -- Yes --> P[Mark Candidate Eligible]
 ```
 
-### Decision Engine and Pool Selection
+### Decision Match
+
+`Decision Match` is the core request-evaluation path inside the decision engine. It consumes the canonical routing inputs, combines them with the matched rules and policy-constrained candidate set, and prepares the legal route space that will be consumed by downstream algorithms.
+
+#### Routing Context
+
+A routing context is the canonical object used by semantic routing.
+
+| Routing Context Class           | Major fields                                                                                                  | Purpose                                             |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
+| Request Content                 | messages, prompt text, system instructions, tool requirements, multimodal metadata, output format requirement | Describe what the request is asking for             |
+| Control Metadata                | `model`, `routing_hint`, `route_override`, `preference`, `input_tokens_estimate`, debug flags                 | Express caller routing intent or optimization hints |
+| Identity and Governance Context | tenant identity, user class, authorization scope, privacy tags, compliance tags, provider restrictions        | Constrain what the caller is allowed to use         |
+
+#### Model Card
+
+A model card is the route-visible model-family definition used by semantic routing to derive a pool decision.
+
+Each routable semantic entry or model family SHOULD expose an identifier, capability class, target-pool mapping, routing tags, supported capabilities and modalities, context-window limits, optional quality/latency/cost attributes, optional reasoning or LoRA variants, and any governance or tenant restrictions relevant to route selection.
+
+A semantic entry or model family is not a concrete backend endpoint. A target pool MAY map to multiple provider models and downstream replicas, while endpoint health and queue metrics remain outside the ownership of model cards.
+
+#### Major Interface Objects
+
+The module boundary consists of four major objects:
+
+| Object            | Owned by          | Major fields                                                                                                           | Purpose                                    |
+| ----------------- | ----------------- | ---------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
+| Request           | Client or gateway | prompt, messages, metadata, identity                                                                                   | Original request entering semantic routing |
+| RouteDecision     | Semantic Router   | `route_class`, `target_pool`, `model_family`, `safety_profile`, `cache_policy`, `routing_confidence`, `fallback_pools` | Formal SR to LB handoff contract           |
+| SchedulingContext | Load Balancer     | pool members, health, load, latency, locality, admission status                                                        | Runtime scheduling state owned by LB only  |
+| DispatchResult    | Load Balancer     | selected endpoint, replica, region, dispatch reason                                                                    | Final execution result after scheduling    |
+
+#### Request Normalization
+
+The request normalizer converts inbound OpenAI-compatible API traffic into a canonical routing object consumed by later stages.
+
+ASE Semantic Router SHOULD support the following semantic-routing-aware controls:
+
+| Field                    | Purpose                                                                         | Constraint                                                                            |
+| ------------------------ | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| `model=auto`             | Request semantic route selection                                                | Default path for routed traffic                                                       |
+| `model=<explicit-model>` | Request a specific semantic entry model or model family directly                | Still subject to capability and policy validation, then mapped to a legal target pool |
+| `routing_hint`           | Provide a coarse semantic hint such as `code`, `reasoning`, `extract`, `vision` | Advisory only; MUST NOT bypass policy                                                 |
+| `route_override`         | Request a specific capability path or target-pool alias                         | Restricted to authorized callers                                                      |
+| `preference`             | Express latency, cost or quality bias                                           | Optimization input only                                                               |
+| `input_tokens_estimate`  | Provide a caller-side prompt-size estimate                                      | Advisory signal only                                                                  |
+| `debug` or `explain`     | Request routing diagnostics                                                     | Restricted and redacted for trusted callers only                                      |
+
+The precedence order MUST be explicit. Hard capability and policy constraints are evaluated first, authorized explicit model requests or route overrides second, and continuity or optimization preferences only after eligibility is established.
+
+### Decision Plugins
+
+`Decision Plugins` are per-decision extensions around the matched route. According to the architecture diagram, they MAY implement capability-specific behaviors such as image-generation handling, system-prompt shaping, header or body mutation, tool activation, or other route-local behaviors that modify how the selected semantic path is prepared for downstream execution.
+
+After route selection, the module MAY also execute per-decision plugins such as safety tagging, audit annotation, semantic-cache hooks, prompt rewrite, tracing, or retrieval augmentation.
+
+### Algorithms
+
+`Algorithms` are the execution modules called by `Decision Engine` after rule matching and hard filtering. As shown in the updated diagram, this is a separate module group under the semantic router rather than part of the internal `Decision Match` stack. In the current architecture, this layer contains `Selection` and `Loopers`.
+
+#### Selection
+
+`Selection` determines how the engine chooses among the legal candidate pools or model families produced by `Decision Match`. As shown in the diagram, the architecture MAY support strategies such as static selection, AutoMix, Elo, Router DC, hybrid selection, latency-aware selection, KNN, or similar ranking methods.
 
 The route-decision algorithm MUST use normalized request context, extracted signals, configured decision rules and candidate pools or `modelRefs`, logical model capabilities and pool mappings, and any applicable continuity or caller preferences. Unlike ASE LLM Load Balancer, semantic routing MUST NOT use backend queue depth, endpoint health, or connection-pool runtime state to choose the target pool.
 
@@ -240,7 +262,7 @@ flowchart LR
 
 In this flow, the hard-filter stage has already removed infeasible candidates. The decision engine then combines normalized request context, extracted signals, the matched `routing.decisions` rule, the remaining legal candidate pools or `modelRefs`, and any applicable caller into a bounded ranking problem. Continuity handling and tie-break rules MAY influence which legal candidate is selected, but they MUST operate only within the feasible route space.
 
-Supported route-selection strategies MAY include static priority, quality-first selection, cost-aware selection, latency-aware selection based on model-level attributes, and hybrid policy-aware ranking.
+Supported route-selection strategies MAY include static priority, quality-first selection, cost-aware selection, latency-aware selection based on model-level attributes, and hybrid policy-aware ranking. `Selection` MUST operate only within the feasible route space that survives hard filtering.
 
 For specification and design review, the route decision SHOULD be modeled as constrained selection over legal candidate pools rather than as a chain of implementation helper functions.
 
@@ -313,11 +335,19 @@ Procedure:
 
 This formulation makes the module boundary explicit: hard capability and policy constraints define the feasible set first; semantic, continuity, and preference signals optimize only within that legal set; and the output of the module is a `RouteDecision` rather than a backend endpoint selection. Semantic Router selects the capability pool; Load Balancer selects the concrete serving replica.
 
-### Plugin Chain and Handoff Contract
+#### Loopers
 
-After route selection, the module MAY execute per-decision plugins such as safety tagging, audit annotation, semantic-cache hooks, prompt rewrite, tracing, or retrieval augmentation.
+`Loopers` provide a closed feedback path for iterative route-quality refinement. As shown in the diagram, loopers MAY include confidence-based feedback, rating-driven feedback, or ReMoM-style memory mechanisms that adjust future routing behavior based on prior outcomes.
 
-The module then emits a formal `RouteDecision` plus any compatibility fields required by downstream execution. This object is the handoff artifact to ASE LLM Load Balancer.
+Loopers MAY update thresholds, weights, or preference signals over time, but they MUST NOT override hard capability checks, tenant governance constraints, or the matched decision rule for an individual request.
+
+### Output and Downstream Handoff
+
+This part documents what the decision engine emits after route evaluation and how that result is consumed by downstream ASE LLM Load Balancer.
+
+#### Handoff Contract
+
+The module emits a formal `RouteDecision` plus any compatibility fields required by downstream execution. This object is the handoff artifact to ASE LLM Load Balancer.
 
 | Field                             | Requirement level | Purpose                                                                    |
 | --------------------------------- | ----------------- | -------------------------------------------------------------------------- |
@@ -363,7 +393,7 @@ An example `RouteDecision` object is shown below.
 }
 ```
 
-### Interaction with ASE LLM Load Balancer
+#### Interaction with ASE LLM Load Balancer
 
 The interaction with the downstream load-balancing module is intentionally narrow. ASE Semantic Router MUST emit a `RouteDecision` whose primary dispatch contract is `target_pool`. ASE LLM Load Balancer MUST consume that pool directly and perform instance-level scheduling only within the declared pool. Policy tags and route metadata MAY constrain dispatch behavior, but they MUST NOT reopen semantic route selection during normal operation.
 
@@ -371,7 +401,7 @@ Two deployment modes MAY be supported. In upstream-compatible integrated mode, t
 
 Fallback behavior MUST preserve the same boundary. Infrastructure fallback keeps the target pool fixed while ASE LLM Load Balancer switches to another healthy replica within that pool. Cross-pool fallback is allowed only when semantic routing or gateway policy declares it explicitly, for example through `fallback_pools`.
 
-### Semantic Failure Classes
+#### Semantic Failure Classes
 
 | Failure class                   | Meaning                                                                                      | Typical cause                                                                      |
 | ------------------------------- | -------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
