@@ -226,11 +226,29 @@ Within this module, `Decision Match` is the core evaluation path. It consumes no
 
 ### Algorithms
 
-`Algorithms` are the execution modules called by `Decision Engine` after rule matching and hard filtering. As shown in the updated diagram, this is a separate module group under the semantic router rather than part of the internal `Decision Match` stack. In the current architecture, this layer contains `Selection` and `Loopers`.
+`Algorithms` is the post-match coordination layer of semantic routing. It becomes relevant only after a decision has matched and exposed more than one legal candidate model family or target pool. At that point, route eligibility has already been established by `Decisions` and constrained by `Policies and Rules`; the remaining problem is no longer "which route is valid?" but rather "how should the router choose or coordinate the valid candidates?".
+
+This separation is important for both design clarity and operational control. Without an algorithm layer, a router either hard-codes one winner inside each decision rule or duplicates ranking logic across many routes. A dedicated algorithm layer keeps model-selection policy explicit, reusable, and independently evolvable. It also allows one semantic route to support several candidate models without collapsing route policy into deployment-local heuristics.
+
+Within the current architecture, algorithms fall into two classes:
+
+- `Selection` algorithms choose one model family or target pool from the legal candidate set.
+- `Loopers` orchestrate multiple models or multiple rounds of inference instead of selecting exactly one winner.
 
 #### Selection
 
-`Selection` determines how the engine chooses among the legal candidate pools or model families produced by `Decision Match`. As shown in the diagram, the architecture MAY support strategies such as static selection, AutoMix, Elo, Router DC, hybrid selection, latency-aware selection, KNN, or similar ranking methods.
+`Selection` determines how the router chooses a single model family or target pool from the legal candidate set produced by `Decision Match`. This class should be used when one route exposes multiple eligible candidates and the system still needs a principled single-winner policy. Typical selection goals include semantic fit, latency minimization, feedback-driven adaptation, cost-quality tradeoff, personalization, and interpretable offline routing.
+
+Representative selection families include:
+
+- `Static` for fixed curated ordering when the route owner already knows the desired preference order.
+- `Latency Aware` when the primary objective is to choose the fastest acceptable candidate from model-level latency metrics.
+- `Router DC` when query-to-model semantic matching should dominate selection.
+- `Elo` when online feedback or pairwise preference data should update ranking over time.
+- `AutoMix` when the route should implement staged cost-quality escalation.
+- `Hybrid` when several ranking signals must be blended into one final utility.
+- `RL Driven` or `GMT Router` when exploration or personalization is a first-class requirement.
+- `KNN`, `KMeans`, `SVM`, or `MLP` when offline learned routing policies are preferred over hand-written scoring logic.
 
 The route-decision algorithm MUST use normalized request context, extracted signals, configured decision rules and candidate pools or `modelRefs`, logical model capabilities and pool mappings, and any applicable continuity or caller preferences. Unlike ASE LLM Load Balancer, semantic routing MUST NOT use backend queue depth, endpoint health, or connection-pool runtime state to choose the target pool.
 
@@ -328,9 +346,47 @@ This formulation makes the module boundary explicit: hard capability and policy 
 
 #### Loopers
 
-`Loopers` provide a closed feedback path for iterative route-quality refinement. As shown in the diagram, loopers MAY include confidence-based feedback, rating-driven feedback, or ReMoM-style memory mechanisms that adjust future routing behavior based on prior outcomes.
+`Loopers` are multi-model orchestration algorithms. They should be used when the correct post-match behavior is not to pick exactly one candidate, but to stage, combine, or iterate across multiple models or multiple rounds of reasoning. Compared with `Selection`, which returns one winner, a looper defines an execution pattern over several candidate calls.
+
+Representative looper families include:
+
+- `Confidence` for small-to-large escalation, where a cheaper or smaller model is tried first and escalation occurs only when confidence is insufficient.
+- `Ratings` for bounded concurrent execution, where several candidates may run within a cap and their outputs are aggregated or rated.
+- `ReMoM` for multi-round parallel reasoning, where breadth, memory, and synthesis are all part of the orchestration policy.
 
 Loopers MAY update thresholds, weights, or preference signals over time, but they MUST NOT override hard capability checks, tenant governance constraints, or the matched decision rule for an individual request.
+
+#### Algorithm Decision Guide
+
+The following decision guide summarizes how algorithm choice should be made after a route has already matched and produced a legal candidate set. It is adapted from the official vLLM Semantic Router algorithm overview and recast here for ASE system design.
+
+```mermaid
+flowchart TD
+    A[Matched Decision] --> B{More than one legal candidate model or target pool?}
+    B -- No --> B1[No algorithm needed beyond the matched route]
+    B -- Yes --> C{Need one winner or multi-model orchestration?}
+
+    C -- One winner --> D{Primary selection objective?}
+    D -- Fixed curated order --> S1[Static]
+    D -- Lowest latency from metrics --> S2[Latency Aware]
+    D -- Query-to-model semantic fit --> S3[Router DC]
+    D -- Online feedback-driven ranking --> S4[Elo]
+    D -- Cost-quality cascade --> S5[AutoMix]
+    D -- Blend multiple ranking signals --> S6[Hybrid]
+    D -- Personalization or exploration --> S7[RL Driven or GMT Router]
+    D -- Offline learned classifier --> D2{Preferred inductive bias?}
+    D2 -- Example-based --> S8[KNN]
+    D2 -- Cluster-based --> S9[KMeans]
+    D2 -- Margin classifier --> S10[SVM]
+    D2 -- Nonlinear neural selector --> S11[MLP]
+
+    C -- Multi-model orchestration --> E{Execution pattern needed?}
+    E -- Small-to-large escalation --> L1[Confidence]
+    E -- Bounded concurrent execution --> L2[Ratings]
+    E -- Multi-round parallel reasoning and synthesis --> L3[ReMoM]
+```
+
+At the top level, algorithm selection SHOULD follow one question first: whether the route needs single-winner ranking or multi-model orchestration. Only after that split should the router choose among `Selection` or `Looper` variants according to the dominant operational objective, such as latency, semantic fit, feedback adaptation, personalization, or staged reasoning.
 
 ### Plugins
 
