@@ -237,7 +237,7 @@ Within the current architecture, algorithms fall into two classes:
 
 #### Algorithm Decision Guide
 
-The following decision guide summarizes how algorithm choice should be made after a route has already matched and produced a legal candidate set. It is adapted from the official vLLM Semantic Router algorithm overview and recast here for ASE system design.
+The following decision guide summarizes how `Selection` should be understood at the functional level after a route has already matched and produced a legal candidate set. It is adapted from the official vLLM Semantic Router algorithm overview and recast here for ASE system design. Its purpose is taxonomic and operational: it helps the reader decide when selection is needed and which broad algorithm family is appropriate for a given routing objective. It does not describe the internal model structure, training procedure, update rule, or scoring mechanism of any individual algorithm.
 
 ```mermaid
 flowchart TD
@@ -265,11 +265,13 @@ flowchart TD
     E -- Multi-round parallel reasoning and synthesis --> L3[ReMoM]
 ```
 
-At the top level, algorithm selection SHOULD follow one question first: whether the route needs single-winner ranking or multi-model orchestration. Only after that split should the router choose among `Selection` or `Looper` variants according to the dominant operational objective, such as latency, semantic fit, feedback adaptation, personalization, or staged reasoning.
+At the top level, algorithm selection SHOULD follow one question first: whether the route needs single-winner ranking or multi-model orchestration. Only after that split should the router choose among `Selection` or `Looper` variants according to the dominant operational objective, such as latency, semantic fit, feedback adaptation, personalization, or staged reasoning. The guide is therefore a high-level map of selection behavior, not a specification of internal algorithm design.
 
 #### Selection
 
-`Selection` determines how the router chooses a single model family or target pool from the legal candidate set produced by `Decision Match`. This class should be used when one route exposes multiple eligible candidates and the system still needs a principled single-winner policy. Typical selection goals include semantic fit, latency minimization, feedback-driven adaptation, cost-quality tradeoff, personalization, and interpretable offline routing.
+`Selection` determines how the router chooses a single model family or target pool from the legal candidate set produced by `Decision Match`. This class should be used when one route exposes multiple eligible candidates and the system still needs a principled single-winner policy. Because model choice directly affects cost, latency, response quality, personalization, and system efficiency, selection is one of the most important design surfaces in the semantic router.
+
+This section is intentionally written as a functional overview rather than as an exhaustive catalog or implementation commitment. The space of selection algorithms is broad and evolving, and practical systems often combine several ideas or adapt them to local constraints. The purpose of this subsection is therefore to summarize the major algorithm families that are relevant to ASE semantic routing, explain the routing objectives they are commonly used for, and establish a vocabulary for future design and implementation work. It does not attempt to specify the internal mechanisms of each algorithm family.
 
 Representative selection families include:
 
@@ -346,61 +348,34 @@ flowchart LR
 
 ### Output and Downstream Handoff
 
-This part documents what the decision engine emits after route evaluation and how that result is consumed by downstream ASE LLM Load Balancer.
+This part only summarizes the semantic-router output boundary. In ASE split mode, ASE Semantic Router emits a `RouteDecision` and hands the request to ASE LLM Load Balancer for endpoint scheduling. The detailed downstream API, transport shape, and scheduling result contract are intentionally not specified here; they belong to the load balancer specification.
 
-#### Handoff Contract
+At a minimum, the handoff MUST preserve the following information:
 
-The module emits a formal `RouteDecision` plus any compatibility fields required by downstream execution. This object is the handoff artifact to ASE LLM Load Balancer.
+| Field                   | Requirement level | Purpose                                                         |
+| ----------------------- | ----------------- | --------------------------------------------------------------- |
+| `request_id`            | Required          | Stable identity across routing, scheduling, and observability   |
+| `route_decision_status` | Required          | Distinguish successful routing from rejection or internal error |
+| `target_pool`           | Required if `ok`  | Authoritative semantic dispatch domain for downstream scheduling |
+| `route_class`           | Required if `ok`  | Capability path selected by semantic routing                    |
+| `model_family`          | Optional          | Preferred model family inside the selected pool                 |
+| `policy_tags`           | Optional          | Governance constraints relevant to downstream handling          |
+| `fallback_pools`        | Optional          | Explicit semantic permission for cross-pool fallback            |
 
-| Field                             | Requirement level | Purpose                                                                    |
-| --------------------------------- | ----------------- | -------------------------------------------------------------------------- |
-| `route_class`                     | Required          | Capability path chosen by semantic routing                                 |
-| `target_pool`                     | Required          | Primary dispatch contract consumed by ASE LLM load balancer                |
-| `model_family`                    | Optional          | Preferred model family inside the selected pool                            |
-| `latency_tier`                    | Optional          | Scheduling hint for latency class                                          |
-| `cost_tier`                       | Optional          | Scheduling hint for cost class                                             |
-| `safety_profile`                  | Optional          | Required safety posture for downstream handling                            |
-| `cache_policy`                    | Optional          | Cache and reuse policy hint                                                |
-| `routing_confidence`              | Optional          | Confidence of the semantic decision                                        |
-| `fallback_pools`                  | Optional          | Explicit cross-pool fallback policy allowed by semantic or gateway policy  |
-| `request_id`                      | Required          | Stable request identity across routing, dispatch and observability         |
-| `route_decision_status`           | Required          | Distinguish successful routing from semantic rejection                     |
-| `matched_decision`                | Optional          | Identify which semantic decision rule matched                              |
-| `route_reason`                    | Optional          | Preserve operator-readable routing rationale                               |
-| `policy_tags`                     | Optional          | Carry governance annotations that may matter downstream                    |
-| `debug_trace_id`                  | Optional          | Correlate routing decisions with trace and logs                            |
-| `model` or projected route header | Optional          | Compatibility field only; not the sole dispatch contract in ASE split mode |
+At this boundary, `target_pool` is the primary dispatch contract. ASE LLM Load Balancer MUST schedule within the selected pool and MUST NOT reopen semantic route selection during normal operation. Infrastructure failover within the same pool belongs to the load balancer. Cross-pool fallback is allowed only when semantic routing or gateway policy declares it explicitly.
 
-At a minimum, every emitted `RouteDecision` MUST include `route_class`, `target_pool`, `request_id`, and `route_decision_status`. Optional fields MAY be omitted when not applicable or when withheld by policy.
-
-At this boundary, `target_pool` is the primary dispatch contract. `model_family` or a normalized `model` value are compatibility hints only. ASE LLM Load Balancer MUST schedule within the selected pool and MUST NOT reinterpret prompt semantics.
-
-An example `RouteDecision` object is shown below.
-
-```json
-{
-  "route_class": "reasoning",
-  "target_pool": "reasoning_pool",
-  "model_family": "qwen3-32b",
-  "latency_tier": "standard",
-  "cost_tier": "medium",
-  "safety_profile": "default",
-  "cache_policy": "allow",
-  "routing_confidence": 0.91,
-  "fallback_pools": ["general_large_pool", "review_pool"],
-  "request_id": "req-123456",
-  "route_decision_status": "ok",
-  "matched_decision": "computer_science_reasoning",
-  "route_reason": "domain=code;complexity=high;policy=allowed",
-  "policy_tags": ["tenant:default", "privacy:standard"]
-}
-```
+For the detailed SR-to-LB API contract, transport binding, response schema, and scheduling behavior, refer to [ASE LLM Load Balancer](./ase_llm_load_balancer.md).
 
 #### Interaction with ASE LLM Load Balancer
 
-The interaction with the downstream load-balancing module is intentionally narrow. ASE Semantic Router MUST emit a `RouteDecision` whose primary dispatch contract is `target_pool`. ASE LLM Load Balancer MUST consume that pool directly and perform instance-level scheduling only within the declared pool. Policy tags and route metadata MAY constrain dispatch behavior, but they MUST NOT reopen semantic route selection during normal operation.
+The interaction with the downstream load-balancing module is intentionally narrow. ASE Semantic Router MUST emit a semantic contract whose primary dispatch key is `target_pool`. ASE LLM Load Balancer MUST consume that pool directly and perform instance-level scheduling only within the declared pool. Policy tags and route metadata MAY constrain dispatch behavior, but they MUST NOT reopen semantic route selection during normal operation.
 
-Two deployment modes MAY be supported. In upstream-compatible integrated mode, the service MAY project route headers or destination hints for gateway integration. In ASE split mode, the semantic router emits `RouteDecision` plus routing metadata and delegates final endpoint selection to ASE LLM Load Balancer. ASE split mode is preferred.
+Two deployment modes MAY be supported:
+
+- In upstream-compatible integrated mode, the service MAY project route headers or destination hints for gateway integration.
+- In ASE split mode, the semantic router emits the SR-to-LB request contract described above and delegates final endpoint selection to ASE LLM Load Balancer.
+
+ASE split mode is preferred, because it keeps semantic route selection and endpoint scheduling separately testable and operationally explicit.
 
 Fallback behavior MUST preserve the same boundary. Infrastructure fallback keeps the target pool fixed while ASE LLM Load Balancer switches to another healthy replica within that pool. Cross-pool fallback is allowed only when semantic routing or gateway policy declares it explicitly, for example through `fallback_pools`.
 
