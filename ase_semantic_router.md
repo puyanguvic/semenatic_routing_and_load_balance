@@ -8,9 +8,12 @@ Author: Pu Yang/84399478， Rui Zhou/8400631
 
 # Introduction
 
-In the inference control plane, semantic routing and load balancing are distinct decisions. Semantic routing selects a legal capability path, model family, or target pool from normalized request context and governance constraints. Load balancing selects a healthy backend endpoint within that pool. ASE Semantic Router therefore operates on request semantics rather than transport metadata and MUST emit an explainable, auditable `RouteDecision`.
 
-Static model pinning and transport-only routing are insufficient for LLM workloads. Prompt content may imply modality, reasoning depth, context-window, privacy, tenant, or compliance constraints before inference begins. ASE Semantic Router resolves those constraints before dispatch and hands a stable `RouteDecision` contract to ASE LLM Load Balancer. The design follows the general direction of signal-driven routing systems such as vLLM semantic-router, semantic-router, RouteLLM, Kong AI Gateway, and Cloudflare AI Gateway, while keeping semantic selection separate from endpoint scheduling so that policy and audit controls are enforced before execution.
+Traditional API gateways are designed for conventional application traffic. They typically front diverse microservices and focus on northbound request handling, authentication, security policy, protocol mediation, and service routing. AI gateway behavior is different. It must broker access to heterogeneous external LLM providers and self-hosted model stacks, where prompt meaning, data sensitivity, modality, context size, and governance constraints may determine the legal and appropriate model path before inference begins.
+
+Within that access path, semantic routing and load balancing are separate functions. Semantic routing selects a legal capability path, model family, or target pool from normalized request context and governance constraints. Load balancing selects a healthy backend endpoint within the selected pool. ASE Semantic Router therefore operates on request semantics rather than transport metadata and MUST emit an explainable and auditable `RouteDecision` for ASE LLM Load Balancer and any downstream serving stack.
+
+This boundary also defines feature ownership. Request understanding, provider connectivity, policy enforcement, semantic classification, model-family selection, and route explanation belong to ASE Semantic Router. Inference optimization, replica scheduling, KV-cache efficiency, batching, and endpoint-level failover belong to ASE LLM Load Balancer or to downstream self-hosted serving systems.
 
 # Background
 
@@ -36,67 +39,8 @@ The semantic router processing logic as below:
 
 The following flows describe the stages owned by ASE Semantic Router. 
 
-## Semantic Router Request Path
-
-```mermaid
-flowchart LR
-    A[Receive Request] --> B{Request Valid?}
-    B -- No --> E1[Return Validation Error]
-
-    B -- Yes --> N[Normalize Request]
-    N --> C[Build Routing Context]
-    C --> O{Override Present?}
-
-    O -- Yes --> P{Override Authorized and Compatible?}
-    P -- No --> E2[Return Policy Error]
-    P -- Yes --> PL[Apply Route Plugins]
-
-    O -- No --> S[Extract Routing Signals]
-    S --> R[Evaluate Decision Rules]
-    R --> T[Build Candidate Pool Set]
-    T --> G{Target Pool Selected?}
-    G -- No --> E3[Return No Route Error]
-    G -- Yes --> PL
-
-    PL --> D[Emit RouteDecision]
-    D --> H[Handoff to ASE LLM Load Balancer]
-```
-
-The request path MUST normalize the inbound payload into a canonical routing context before semantic selection begins. When an explicit model or route override is present, the override MAY bypass rule evaluation, but it MUST still pass authorization, capability, and policy compatibility checks. When no override applies, the router MUST extract routing signals, evaluate decision rules, derive a legal candidate pool set, and emit a single explainable `RouteDecision` for downstream scheduling.
-
-## Semantic Router Response and Post-Processing Path
-
-```mermaid
-flowchart LR
-    A[Receive Downstream Response] --> B{Request Context Correlated?}
-    B -- No --> X[Drop or Apply Error Policy]
-
-    B -- Yes --> P{Post-Response Plugins Enabled?}
-    P -- No --> R[Return Response]
-    P -- Yes --> T[Write Audit Trace]
-    T --> C[Update Semantic Cache]
-    C --> R[Return Response]
-```
-
-The response path begins only after the downstream response has been correlated with the original request context. If no valid correlation exists, the router MUST drop the response or apply implementation-specific error policy; it MUST NOT attach post-processing state to an unrelated request. Post-response plugins MAY update audit trace state, and semantic cache entries before the response is returned to the caller.
 
 # Design Modules
-
-## LLM Listener
-
-Please refer to the corresponding section of [ASE semantic load balancer](./ase_semantic_load_balancer.md).
-
-## Ports
-
-Please refer to the corresponding section of [ASE semantic load balancer](./ase_semantic_load_balancer.md).
-
-## LLM REST API Service
-
-Please refer to the corresponding section of [ASE semantic load balancer](./ase_semantic_load_balancer.md).
-
-## Semantic Router
-
-### Core Data Structures
 
 #### Signals
 
