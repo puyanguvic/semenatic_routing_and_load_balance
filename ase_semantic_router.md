@@ -88,31 +88,31 @@ The following design rules SHOULD hold for this section of the routing graph:
 
 ## Projections
 
-Projections is the coordination layer between raw signal detection and final decision matching.
+`Projections` is the coordination layer between raw signal detection and final decision evaluation. Signals are intentionally local: a keyword detector, domain classifier, embedding matcher, or context detector contributes one piece of evidence about the request. Decision logic is intentionally selective: it determines which semantic route should win. Projections fill the gap between those two layers by coordinating several signal results into reusable routing facts.
 
-Projections can be separated into three parts:
+This layer is needed when several competing signals must be reduced to one winner, when multiple weak signals collectively express a higher-level property such as difficulty or verification pressure, or when the same threshold policy should be reused across many route rules without duplicating numeric logic. By isolating that coordination step, the routing graph remains easier to inspect, validate, and evolve.
 
-- Partitions
+In the semantic-routing pipeline, projections sit after `Signals` and before `Decision Engine`. Their role is not to perform final route selection, but to transform raw signal outputs into derived facts that later decision logic can consume consistently.
 
-Coordinate existing `domain` or `embedding` matches and keep one winner.
+### Partitions
 
-Algorithms support "exclusive" or "softmax_exclusive".
+`Partitions` coordinate competing `domain` or `embedding` matches and resolve them into a single winner when the route logic requires exclusivity.
 
-- Scores
+Supported semantics include `exclusive` and `softmax_exclusive`.
 
-Aggregate matched signals into one numeric value
+### Scores
 
-Algorithms support "weighted_sum"
+`Scores` aggregate multiple matched signals into one continuous numeric value. This is useful when no single detector is sufficient, but the joint evidence indicates a higher-level routing property such as complexity, verification need, or escalation pressure.
 
-- Mappings
+Supported methods include `weighted_sum`.
 
-Turn that numeric value into named projection outputs, and can be directly used by desisions.
+### Mappings
 
-Algorithms support "threshold_bands" and "sigmoid_distance".
+`Mappings` transform a continuous score into named projection outputs that can be consumed by later decision logic. In practice, mappings convert low-level numeric coordination into reusable routing bands such as `simple`, `complex`, `reasoning`, or `verification_required`.
 
+Supported methods include `threshold_bands` and `sigmoid_distance`.
 
-
-Take the following YAML configuration file for example:
+The following YAML fragment illustrates the canonical projection shape:
 
 ```yaml
 routing:
@@ -159,7 +159,7 @@ routing:
             gte: 0.25
 ```
 
- And finally mapping outputs names of  "support_fast" and "support_escalated" can be referenced in decision engines.
+The mapping outputs `support_fast` and `support_escalated` then become reusable projection facts for later decision evaluation.
 
 ## Decision Engine
 
