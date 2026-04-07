@@ -163,40 +163,13 @@ The mapping outputs `support_fast` and `support_escalated` then become reusable 
 
 ## Decision Engine
 
-The `Decision Engine` consumes routing context together with the outputs of `Signals` and `Projections`, applies configured rules and policies, performs decision matching over the legal candidate set, invokes `Decision Plugins` and algorithm modules, and emits a formal `RouteDecision`. According to the updated architecture diagram, this part of the document is organized around five concerns: `Decision Match`, `Rules and Policies`, `Decision Plugins`, `Algorithms`, and the output and downstream handoff to ASE LLM Load Balancer.
+The `Decision Engine` consumes routing context together with the outputs of `Signals` and `Projections`, evaluates semantic route hypotheses, invokes algorithm and plugin modules where needed, and emits a formal `RouteDecision`. For expository clarity, this section is organized in the following order: `Decisions`, `Algorithms`, `Decision Plugins`, `Policies and Rules`, and finally the output and downstream handoff to ASE LLM Load Balancer.
 
-### Rules and Policies
+### Decisions
 
-#### Decision Rules
+`Decisions` is the route-policy layer of semantic routing. `Signals` and `Projections` describe what has been detected or coordinated from the request. Decisions determine how the router should act on that evidence: which semantic route matches, which candidate model families or target pools are eligible, whether specialized reasoning behavior should be enabled, and which downstream algorithms or plugins may apply after the route is chosen.
 
-A decision rule is the semantic route rule defined in `routing.decisions`.
-
-Each decision rule SHOULD contain a name, priority, typed conditions with logical composition, a candidate `modelRefs` set, a selection algorithm, and optional plugins. Decision rules define the legal route space for a request; they do not select the final backend endpoint.
-
-#### Hard Constraint and Policy Filter
-
-Before any optimization among candidate pools or model families, the request MUST pass hard capability and policy checks.
-
-The filter evaluates request validity, explicit-override authorization, capability and modality matching, context-length and token-limit constraints, tenant restrictions, provider allowlists or denylists, privacy and compliance tags, jailbreak policy, and PII-sensitive routing restrictions.
-
-The hard-filter stage is eliminative rather than score-based. A candidate that fails any hard constraint MUST be removed from the legal route space before optimization, preference handling, or plugin execution begins.
-
-```mermaid
-flowchart LR
-    A[Evaluate Candidate Pool or Model Family] --> B{Capabilities and Modalities Compatible?}
-    B -- No --> R[Reject Candidate]
-
-    B -- Yes --> C{Context and Token Limits Satisfied?}
-    C -- No --> R
-
-    C -- Yes --> D{Policy and Governance Allowed?}
-    D -- No --> R
-    D -- Yes --> P[Mark Candidate Eligible]
-```
-
-### Decision Match
-
-`Decision Match` is the core request-evaluation path inside the decision engine. It consumes the canonical routing inputs, combines them with the matched rules and policy-constrained candidate set, and prepares the legal route space that will be consumed by downstream algorithms.
+This layer is necessary because evidence alone does not define routing behavior. Without an explicit decision layer, route logic tends to be scattered across ad hoc conditionals, model defaults, and plugin wiring. A dedicated decision layer keeps policy readable, priority-aware, and reviewable, while preserving a clean boundary between route matching, deployment bindings, selection algorithms, and post-selection behavior.
 
 #### Routing Context
 
@@ -245,11 +218,26 @@ ASE Semantic Router SHOULD support the following semantic-routing-aware controls
 
 The precedence order MUST be explicit. Hard capability and policy constraints are evaluated first, authorized explicit model requests or route overrides second, and continuity or optimization preferences only after eligibility is established.
 
-### Decision Plugins
+#### Decision Rules
 
-`Decision Plugins` are per-decision extensions around the matched route. According to the architecture diagram, they MAY implement capability-specific behaviors such as image-generation handling, system-prompt shaping, header or body mutation, tool activation, or other route-local behaviors that modify how the selected semantic path is prepared for downstream execution.
+A decision rule is the formal policy object that turns detected request evidence into routing intent. In scientific terms, it is the stage where reusable observations are converted into an explicit action hypothesis for the router.
 
-After route selection, the module MAY also execute per-decision plugins such as safety tagging, audit annotation, semantic-cache hooks, prompt rewrite, tracing, or retrieval augmentation.
+Decision rules SHOULD be used when a route activates from one or more signals, when route priority matters, when the same model-selection policy should be reused across different evidence combinations, or when algorithms and plugins must attach to a matched route rather than to the entire router.
+
+A decision rule SHOULD define:
+
+- a stable rule identity and priority
+- a boolean condition set over signals and projection outputs
+- a candidate model-family or target-pool set
+- any route-level reasoning or behavior flags
+- an optional algorithm binding when multiple candidates remain
+- optional plugins that execute after route selection
+
+The logical forms of decision rules commonly include single-condition, `AND`, `OR`, `NOT`, and nested composite policies. Regardless of surface syntax, their purpose is the same: to define the legal route space for a request. They do not perform final endpoint scheduling, and they SHOULD remain separate from provider deployment bindings, runtime balancing state, and post-route mutation behavior.
+
+#### Decision Match
+
+`Decision Match` is the core request-evaluation path inside the decision engine. It consumes the canonical routing inputs, combines them with the matched rules and policy-constrained candidate set, and prepares the legal route space that will be consumed by downstream algorithms.
 
 ### Algorithms
 
@@ -358,6 +346,37 @@ This formulation makes the module boundary explicit: hard capability and policy 
 `Loopers` provide a closed feedback path for iterative route-quality refinement. As shown in the diagram, loopers MAY include confidence-based feedback, rating-driven feedback, or ReMoM-style memory mechanisms that adjust future routing behavior based on prior outcomes.
 
 Loopers MAY update thresholds, weights, or preference signals over time, but they MUST NOT override hard capability checks, tenant governance constraints, or the matched decision rule for an individual request.
+
+### Decision Plugins
+
+`Decision Plugins` are per-decision extensions around the matched route. According to the architecture diagram, they MAY implement capability-specific behaviors such as image-generation handling, system-prompt shaping, header or body mutation, tool activation, or other route-local behaviors that modify how the selected semantic path is prepared for downstream execution.
+
+After route selection, the module MAY also execute per-decision plugins such as safety tagging, audit annotation, semantic-cache hooks, prompt rewrite, tracing, or retrieval augmentation.
+
+### Policies and Rules
+
+`Policies and Rules` defines the non-negotiable constraint boundary within which decisions, algorithms, and plugins are allowed to operate. This material appears after the decision description here for explanatory clarity, but its runtime effect is earlier and stricter: it limits the legal route space before any optimization among candidate pools or model families is allowed.
+
+#### Hard Constraint and Policy Filter
+
+Before any optimization among candidate pools or model families, the request MUST pass hard capability and policy checks.
+
+The filter evaluates request validity, explicit-override authorization, capability and modality matching, context-length and token-limit constraints, tenant restrictions, provider allowlists or denylists, privacy and compliance tags, jailbreak policy, and PII-sensitive routing restrictions.
+
+The hard-filter stage is eliminative rather than score-based. A candidate that fails any hard constraint MUST be removed from the legal route space before optimization, preference handling, or plugin execution begins.
+
+```mermaid
+flowchart LR
+    A[Evaluate Candidate Pool or Model Family] --> B{Capabilities and Modalities Compatible?}
+    B -- No --> R[Reject Candidate]
+
+    B -- Yes --> C{Context and Token Limits Satisfied?}
+    C -- No --> R
+
+    C -- Yes --> D{Policy and Governance Allowed?}
+    D -- No --> R
+    D -- Yes --> P[Mark Candidate Eligible]
+```
 
 ### Output and Downstream Handoff
 
