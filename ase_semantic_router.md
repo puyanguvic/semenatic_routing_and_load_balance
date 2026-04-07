@@ -31,7 +31,7 @@ In this document, Semantic Router refers to the stage that selects a legal capab
 
 The ASE Semantic Router is organized into three top-level parts: `Signals`, `Projections`, and `Decision Engine`. `Signals` extracts heuristic and learned routing evidence such as domain, modality, complexity, safety posture, user intent, and governance constraints from the inbound LLM request. `Projections` then consolidates those raw detections into canonical partitions, scores, and named mappings so that downstream routing logic can operate on a stable semantic feature set rather than ad hoc prompt text.
 
-The `Decision Engine` consumes the outputs of `Signals` and `Projections` together with request context, applies configured `Rules and Policies`, executes `Decision Match`, and produces the explainable route that is handed to ASE LLM Load Balancer. Around that core, the engine MAY invoke `Decision Plugins` to apply capability-specific behaviors such as image-generation handling, system-prompt shaping, tool activation, or header/body mutation, and it MAY call the `Algorithms` layer, which currently consists of `Selection` and `Loopers`, to choose among eligible model families or target pools and refine route quality over time. The router then emits a formal routing output and downstream handoff artifact for ASE LLM Load Balancer, while endpoint-level scheduling, health-aware balancing, and final dispatch remain outside the ownership of semantic routing.
+The `Decision Engine` consumes the outputs of `Signals` and `Projections` together with request context, applies configured `Rules and Policies`, executes `Decision Match`, and produces the explainable route that is handed to ASE LLM Load Balancer. Around that core, the engine MAY invoke `Plugins` to apply capability-specific behaviors such as image-generation handling, system-prompt shaping, tool activation, or header/body mutation, and it MAY call the `Algorithms` layer, which currently consists of `Selection` and `Loopers`, to choose among eligible model families or target pools and refine route quality over time. The router then emits a formal routing output and downstream handoff artifact for ASE LLM Load Balancer, while endpoint-level scheduling, health-aware balancing, and final dispatch remain outside the ownership of semantic routing.
 
 <div align="center">
 <img src="./assets/ase_semantic_router.svg" alt="ASE Semantic Router Block Diagram" width="1000"/>
@@ -163,7 +163,7 @@ The mapping outputs `support_fast` and `support_escalated` then become reusable 
 
 ## Decision Engine
 
-The `Decision Engine` consumes routing context together with the outputs of `Signals` and `Projections`, evaluates semantic route hypotheses, invokes algorithm and plugin modules where needed, and emits a formal `RouteDecision`. For expository clarity, this section is organized in the following order: `Decisions`, `Algorithms`, `Decision Plugins`, `Policies and Rules`, and finally the output and downstream handoff to ASE LLM Load Balancer.
+The `Decision Engine` consumes routing context together with the outputs of `Signals` and `Projections`, evaluates semantic route hypotheses, invokes algorithm and plugin modules where needed, and emits a formal `RouteDecision`. For expository clarity, this section is organized in the following order: `Decisions`, `Algorithms`, `Plugins`, `Policies and Rules`, and finally the output and downstream handoff to ASE LLM Load Balancer.
 
 ### Decisions
 
@@ -171,9 +171,7 @@ The `Decision Engine` consumes routing context together with the outputs of `Sig
 
 This layer is necessary because evidence alone does not define routing behavior. Without an explicit decision layer, route logic tends to be scattered across ad hoc conditionals, model defaults, and plugin wiring. A dedicated decision layer keeps policy readable, priority-aware, and reviewable, while preserving a clean boundary between route matching, deployment bindings, selection algorithms, and post-selection behavior.
 
-#### Routing Context
-
-A routing context is the canonical object used by semantic routing.
+At the input boundary of this module, semantic routing operates over a canonical routing context rather than over raw transport metadata alone. That routing context captures what the request asks for, what the caller is allowed to do, and what control hints have been provided by the caller or gateway.
 
 | Routing Context Class           | Major fields                                                                                                  | Purpose                                             |
 | ------------------------------- | ------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
@@ -181,17 +179,13 @@ A routing context is the canonical object used by semantic routing.
 | Control Metadata                | `model`, `routing_hint`, `route_override`, `preference`, `input_tokens_estimate`, debug flags                 | Express caller routing intent or optimization hints |
 | Identity and Governance Context | tenant identity, user class, authorization scope, privacy tags, compliance tags, provider restrictions        | Constrain what the caller is allowed to use         |
 
-#### Model Card
-
-A model card is the route-visible model-family definition used by semantic routing to derive a pool decision.
+The decision module also depends on route-visible model-family definitions. A model card provides the semantic description of a routable model family or capability entry that may participate in a decision.
 
 Each routable semantic entry or model family SHOULD expose an identifier, capability class, target-pool mapping, routing tags, supported capabilities and modalities, context-window limits, optional quality/latency/cost attributes, optional reasoning or LoRA variants, and any governance or tenant restrictions relevant to route selection.
 
 A semantic entry or model family is not a concrete backend endpoint. A target pool MAY map to multiple provider models and downstream replicas, while endpoint health and queue metrics remain outside the ownership of model cards.
 
-#### Major Interface Objects
-
-The module boundary consists of four major objects:
+At the system boundary, the decision layer sits between the inbound request contract and the downstream routing handoff. The major interface objects are:
 
 | Object            | Owned by          | Major fields                                                                                                           | Purpose                                    |
 | ----------------- | ----------------- | ---------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
@@ -200,9 +194,7 @@ The module boundary consists of four major objects:
 | SchedulingContext | Load Balancer     | pool members, health, load, latency, locality, admission status                                                        | Runtime scheduling state owned by LB only  |
 | DispatchResult    | Load Balancer     | selected endpoint, replica, region, dispatch reason                                                                    | Final execution result after scheduling    |
 
-#### Request Normalization
-
-The request normalizer converts inbound OpenAI-compatible API traffic into a canonical routing object consumed by later stages.
+Before any decision rule is evaluated, inbound OpenAI-compatible API traffic SHOULD be normalized into that canonical routing object. The semantic-routing-aware controls below define the caller-visible decision inputs:
 
 ASE Semantic Router SHOULD support the following semantic-routing-aware controls:
 
@@ -218,26 +210,11 @@ ASE Semantic Router SHOULD support the following semantic-routing-aware controls
 
 The precedence order MUST be explicit. Hard capability and policy constraints are evaluated first, authorized explicit model requests or route overrides second, and continuity or optimization preferences only after eligibility is established.
 
-#### Decision Rules
+A decision rule is the formal policy object that turns detected request evidence into routing intent. In methodological terms, it is the stage where reusable observations are converted into an explicit action hypothesis for the router. A decision rule SHOULD define a stable rule identity and priority, a boolean condition set over signals and projection outputs, a candidate model-family or target-pool set, any route-level reasoning or behavior flags, an optional algorithm binding when multiple candidates remain, and optional plugins that execute after route selection.
 
-A decision rule is the formal policy object that turns detected request evidence into routing intent. In scientific terms, it is the stage where reusable observations are converted into an explicit action hypothesis for the router.
+Decision rules SHOULD be used when a route activates from one or more signals, when route priority matters, when the same model-selection policy should be reused across different evidence combinations, or when algorithms and plugins must attach to a matched route rather than to the entire router. The logical forms of decision rules commonly include single-condition, `AND`, `OR`, `NOT`, and nested composite policies. Regardless of surface syntax, their purpose is the same: to define the legal route space for a request. They do not perform final endpoint scheduling, and they SHOULD remain separate from provider deployment bindings, runtime balancing state, and post-route mutation behavior.
 
-Decision rules SHOULD be used when a route activates from one or more signals, when route priority matters, when the same model-selection policy should be reused across different evidence combinations, or when algorithms and plugins must attach to a matched route rather than to the entire router.
-
-A decision rule SHOULD define:
-
-- a stable rule identity and priority
-- a boolean condition set over signals and projection outputs
-- a candidate model-family or target-pool set
-- any route-level reasoning or behavior flags
-- an optional algorithm binding when multiple candidates remain
-- optional plugins that execute after route selection
-
-The logical forms of decision rules commonly include single-condition, `AND`, `OR`, `NOT`, and nested composite policies. Regardless of surface syntax, their purpose is the same: to define the legal route space for a request. They do not perform final endpoint scheduling, and they SHOULD remain separate from provider deployment bindings, runtime balancing state, and post-route mutation behavior.
-
-#### Decision Match
-
-`Decision Match` is the core request-evaluation path inside the decision engine. It consumes the canonical routing inputs, combines them with the matched rules and policy-constrained candidate set, and prepares the legal route space that will be consumed by downstream algorithms.
+Within this module, `Decision Match` is the core evaluation path. It consumes normalized request context, matched signals and projections, route rules, and candidate model families or target pools, and it produces the legal route space that is later consumed by `Algorithms`. In other words, the `Decisions` subsection explains what semantic route hypotheses exist, which one matches the request, and what candidate action space is exposed to later selection logic.
 
 ### Algorithms
 
@@ -347,9 +324,9 @@ This formulation makes the module boundary explicit: hard capability and policy 
 
 Loopers MAY update thresholds, weights, or preference signals over time, but they MUST NOT override hard capability checks, tenant governance constraints, or the matched decision rule for an individual request.
 
-### Decision Plugins
+### Plugins
 
-`Decision Plugins` are per-decision extensions around the matched route. According to the architecture diagram, they MAY implement capability-specific behaviors such as image-generation handling, system-prompt shaping, header or body mutation, tool activation, or other route-local behaviors that modify how the selected semantic path is prepared for downstream execution.
+`Plugins` are per-decision extensions around the matched route. According to the architecture diagram, they MAY implement capability-specific behaviors such as image-generation handling, system-prompt shaping, header or body mutation, tool activation, or other route-local behaviors that modify how the selected semantic path is prepared for downstream execution.
 
 After route selection, the module MAY also execute per-decision plugins such as safety tagging, audit annotation, semantic-cache hooks, prompt rewrite, tracing, or retrieval augmentation.
 
