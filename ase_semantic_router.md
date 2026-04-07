@@ -1,6 +1,6 @@
 ASE Semantic Router
 
-Author: Pu Yang/84399478， Rui Zhou/8400631
+Author: Pu Yang / 84399478, Rui Zhou / 8400631
 
 [[_TOC_]]
 
@@ -27,11 +27,15 @@ In this document, Semantic Router refers to the stage that selects a legal capab
 
 ## Scope
 
+This document specifies the functional architecture, module boundaries, decision abstractions, and configuration surfaces of ASE Semantic Router. It focuses on semantic request understanding, decision evaluation, algorithm selection, plugin attachment, and the routing output handed to ASE LLM Load Balancer.
+
+Endpoint-level scheduling, backend health evaluation, connection management, and infrastructure failover are outside the scope of this document and belong to ASE LLM Load Balancer or downstream serving systems.
+
 # System Architecture
 
 The ASE Semantic Router is organized into three top-level parts: `Signals`, `Projections`, and `Decision Engine`. `Signals` extracts heuristic and learned routing evidence such as domain, modality, complexity, safety posture, user intent, and governance constraints from the inbound LLM request. `Projections` then consolidates those raw detections into canonical partitions, scores, and named mappings so that downstream routing logic can operate on a stable semantic feature set rather than ad hoc prompt text.
 
-The `Decision Engine` consumes the outputs of `Signals` and `Projections` together with request context, applies configured `Rules and Policies`, executes `Decision Match`, and produces the explainable route that is handed to ASE LLM Load Balancer. Around that core, the engine MAY invoke `Plugins` to apply capability-specific behaviors such as image-generation handling, system-prompt shaping, tool activation, or header/body mutation, and it MAY call the `Algorithms` layer, which currently consists of `Selection` and `Loopers`, to choose among eligible model families or target pools and refine route quality over time. The router then emits a formal routing output and downstream handoff artifact for ASE LLM Load Balancer, while endpoint-level scheduling, health-aware balancing, and final dispatch remain outside the ownership of semantic routing.
+The `Decision Engine` consumes the outputs of `Signals` and `Projections` together with request context, evaluates semantic route hypotheses, and produces the explainable route that is handed to ASE LLM Load Balancer. Around that core, the engine MAY invoke `Plugins` to apply capability-specific behaviors such as image-generation handling, system-prompt shaping, tool activation, or header/body mutation, and it MAY call the `Algorithms` layer, which currently consists of `Selection` and `Loopers`, to choose among eligible model families or target pools and refine route quality over time. The router then emits a formal routing artifact for ASE LLM Load Balancer, while endpoint-level scheduling, health-aware balancing, and final dispatch remain outside the ownership of semantic routing.
 
 <div align="center">
 <img src="./assets/ase_semantic_router.svg" alt="ASE Semantic Router Block Diagram" width="1000"/>
@@ -265,7 +269,7 @@ flowchart TD
     E -- Multi-round parallel reasoning and synthesis --> L3[ReMoM]
 ```
 
-At the top level, algorithm selection SHOULD follow one question first: whether the route needs single-winner ranking or multi-model orchestration. Only after that split should the router choose among `Selection` or `Looper` variants according to the dominant operational objective, such as latency, semantic fit, feedback adaptation, personalization, or staged reasoning. The guide is therefore a high-level map of selection behavior, not a specification of internal algorithm design.
+At the top level, algorithm selection SHOULD begin with one question: whether the route needs single-winner ranking or multi-model orchestration. Only after that split should the router choose among `Selection` or `Looper` variants according to the dominant operational objective, such as latency, semantic fit, feedback adaptation, personalization, or staged reasoning. The guide is therefore a high-level map of selection behavior, not a specification of internal algorithm design.
 
 #### Selection
 
@@ -317,9 +321,9 @@ Loopers MAY update thresholds, weights, or preference signals over time, but the
 
 ### Plugins
 
-`Plugins` are per-decision extensions around the matched route. According to the architecture diagram, they MAY implement capability-specific behaviors such as image-generation handling, system-prompt shaping, header or body mutation, tool activation, or other route-local behaviors that modify how the selected semantic path is prepared for downstream execution.
+`Plugins` are route-local extensions that run around a matched decision and, where applicable, after algorithmic selection has already narrowed the legal candidate set. Their purpose is not to decide whether a route is valid, but to attach capability-specific behaviors to an already valid semantic path.
 
-After route selection, the module MAY also execute per-decision plugins such as safety tagging, audit annotation, semantic-cache hooks, prompt rewrite, tracing, or retrieval augmentation.
+According to the architecture diagram, plugins MAY implement image-generation handling, system-prompt shaping, header or body mutation, tool activation, safety tagging, audit annotation, semantic-cache hooks, prompt rewrite, tracing, retrieval augmentation, or other route-local behaviors that prepare the selected semantic path for downstream execution.
 
 ### Policies and Rules
 
@@ -348,7 +352,7 @@ flowchart LR
 
 ### Output and Downstream Handoff
 
-This part only summarizes the semantic-router output boundary. In ASE split mode, ASE Semantic Router emits a `RouteDecision` and hands the request to ASE LLM Load Balancer for endpoint scheduling. The detailed downstream API, transport shape, and scheduling result contract are intentionally not specified here; they belong to the load balancer specification.
+This subsection only summarizes the output boundary of ASE Semantic Router. In ASE split mode, ASE Semantic Router emits a `RouteDecision` and hands the request to ASE LLM Load Balancer for endpoint scheduling. The detailed downstream API, transport shape, and scheduling result contract are intentionally not specified here; they belong to the load balancer specification.
 
 At a minimum, the handoff MUST preserve the following information:
 
@@ -373,7 +377,7 @@ The interaction with the downstream load-balancing module is intentionally narro
 Two deployment modes MAY be supported:
 
 - In upstream-compatible integrated mode, the service MAY project route headers or destination hints for gateway integration.
-- In ASE split mode, the semantic router emits the SR-to-LB request contract described above and delegates final endpoint selection to ASE LLM Load Balancer.
+- In ASE split mode, the semantic router emits the semantic handoff contract summarized above and delegates final endpoint selection to ASE LLM Load Balancer.
 
 ASE split mode is preferred, because it keeps semantic route selection and endpoint scheduling separately testable and operationally explicit.
 
@@ -392,15 +396,15 @@ Fallback behavior MUST preserve the same boundary. Infrastructure fallback keeps
 
 # Management and Discovery APIs
 
-Please refer to the corresponding section of [ASE semantic load balancer](./ase_semantic_load_balancer.md).
+Please refer to the corresponding section of [ASE LLM Load Balancer](./ase_llm_load_balancer.md).
 
 # Operational Debuggability
 
-Please refer to the corresponding section of [ASE semantic load balancer](./ase_semantic_load_balancer.md).
+Please refer to the corresponding section of [ASE LLM Load Balancer](./ase_llm_load_balancer.md).
 
 # Configuration
 
-This section illustrates the major configuration surfaces required by ASE semantic router. Field names are illustrative; an implementation MAY use different names provided that it preserves equivalent semantics.
+This section illustrates the major configuration surfaces required by ASE Semantic Router. Field names are illustrative; an implementation MAY use different names, provided that equivalent semantics are preserved.
 
 ```yaml
 version: v0.3
