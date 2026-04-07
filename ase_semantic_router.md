@@ -8,19 +8,13 @@ Author: Pu Yang/84399478， Rui Zhou/8400631
 
 # Introduction
 
-Traditional API gateways are designed for conventional application traffic. They typically front diverse microservices and focus on northbound request handling, authentication, security policy, protocol mediation, and service routing. AI gateway behavior is different. It must broker access to heterogeneous external LLM providers and self-hosted model stacks, where prompt meaning, data sensitivity, modality, context size, and governance constraints may determine the legal and appropriate model path before inference begins.
+In the inference control plane, semantic routing and load balancing are distinct decisions. Semantic routing selects a legal capability path, model family, or target pool from normalized request context and governance constraints. Load balancing selects a healthy backend endpoint within that pool. ASE Semantic Router therefore operates on request semantics rather than transport metadata and MUST emit an explainable, auditable `RouteDecision`.
 
-Within that access path, semantic routing and load balancing are separate functions. Semantic routing selects a legal capability path, model family, or target pool from normalized request context and governance constraints. Load balancing selects a healthy backend endpoint within the selected pool. ASE Semantic Router therefore operates on request semantics rather than transport metadata and MUST emit an explainable and auditable `RouteDecision` for ASE LLM Load Balancer and any downstream serving stack.
-
-This boundary also defines feature ownership. Request understanding, provider connectivity, policy enforcement, semantic classification, model-family selection, and route explanation belong to ASE Semantic Router. Inference optimization, replica scheduling, KV-cache efficiency, batching, and endpoint-level failover belong to ASE LLM Load Balancer or to downstream self-hosted serving systems.
+Static model pinning and transport-only routing are insufficient for LLM workloads. Prompt content may imply modality, reasoning depth, context-window, privacy, tenant, or compliance constraints before inference begins. ASE Semantic Router resolves those constraints before dispatch and hands a stable `RouteDecision` contract to ASE LLM Load Balancer. The design follows the general direction of signal-driven routing systems such as vLLM semantic-router, semantic-router, RouteLLM, Kong AI Gateway, and Cloudflare AI Gateway, while keeping semantic selection separate from endpoint scheduling so that policy and audit controls are enforced before execution.
 
 # Background
 
-Current AI gateway implementations generally develop from two directions. One direction extends traditional API gateways, such as Kong AI Gateway or Cloudflare AI Gateway, to recognize LLM traffic and route across providers or model classes. The other direction starts from self-hosted serving systems, such as Ollama, vLLM, or SGLang, that are optimized for execution and scheduling within a deployed model environment. These approaches address different parts of the request path.
-
-ASE separates those concerns explicitly. Semantic routing determines whether a request should go to an external provider, an internal provider pool, or a self-hosted model family by using normalized request context, semantic signals, and governance policy. Downstream load balancing and serving components then optimize execution within the selected pool or deployment. Those downstream components may use engine-native metrics, queue state, batch formation, and cache locality, but those signals are runtime scheduling inputs rather than semantic route inputs.
-
-Many existing LLM routing systems interleave semantic interpretation, policy enforcement, and backend dispatch within one component. That coupling makes route selection harder to explain, govern, and audit. ASE instead treats semantic routing as a separate request pipeline whose output is a pool-level decision rather than an endpoint choice. Future enhancements SHOULD therefore be classified first by ownership: semantic routing and governance, or downstream execution and inference optimization.
+Many LLM routing systems extend API gateways with prompt classification or provider selection, but they often interleave semantic interpretation, policy enforcement, and backend dispatch. That coupling makes route selection harder to explain, govern, and audit. ASE treats semantic routing as a separate request pipeline whose output is a pool-level decision, not an endpoint choice.
 
 ## Conventions and Terminology
 
@@ -79,13 +73,12 @@ flowchart LR
 
     B -- Yes --> P{Post-Response Plugins Enabled?}
     P -- No --> R[Return Response]
-    P -- Yes --> S[Update Session Metadata]
-    S --> T[Write Audit Trace]
+    P -- Yes --> T[Write Audit Trace]
     T --> C[Update Semantic Cache]
     C --> R[Return Response]
 ```
 
-The response path begins only after the downstream response has been correlated with the original request context. If no valid correlation exists, the router MUST drop the response or apply implementation-specific error policy; it MUST NOT attach post-processing state to an unrelated request. Post-response plugins MAY update session continuity metadata, audit trace state, and semantic cache entries before the response is returned to the caller.
+The response path begins only after the downstream response has been correlated with the original request context. If no valid correlation exists, the router MUST drop the response or apply implementation-specific error policy; it MUST NOT attach post-processing state to an unrelated request. Post-response plugins MAY update audit trace state, and semantic cache entries before the response is returned to the caller.
 
 # Design Modules
 
@@ -105,16 +98,120 @@ Please refer to the corresponding section of [ASE semantic load balancer](./ase_
 
 ### Core Data Structures
 
+#### Signals
+
+Signals can be classified into two catogories:
+
+- Heuristic Signals
+
+| Signal family | Purpose                                                                      |
+| ------------- | ---------------------------------------------------------------------------- |
+| `authz`       | route from identity, role, or tenant policy                                  |
+| `context`     | route by effective token-window needs                                        |
+| `keyword`     | route from lexical or BM25-style matches                                     |
+| `language`    | route by detected request language                                           |
+| `structure`   | route from request shape such as question counts or ordered workflow markers |
+
+- Learned Signals
+
+| Signal family   | Purpose                                                         |
+| --------------- | --------------------------------------------------------------- |
+| `complexity`    | detect hard vs easy reasoning traffic                           |
+| `domain`        | classify the request topic family                               |
+| `embedding`     | match by semantic similarity                                    |
+| `modality`      | classify text-only, image-generation, or hybrid output mode     |
+| `fact-check`    | detect prompts that need evidence verification                  |
+| `jailbreak`     | detect prompt-injection or jailbreak attempts                   |
+| `pii`           | detect sensitive personal data                                  |
+| `preference`    | infer response-style preferences                                |
+| `reask`         | detect repeated user questions as implicit dissatisfaction      |
+| `kb`            | bind knowledge base labels or groups into named routing signals |
+| `user-feedback` | detect correction or escalation feedback                        |
+
+#### Projections
+
+Projections is the coordination layer between raw signal detection and final decision matching.
+
+Projections can be separated into three parts:
+
+- Partitions
+
+Coordinate existing `domain` or `embedding` matches and keep one winner.
+
+Algorithms support "exclusive" or "softmax_exclusive".
+
+- Scores
+
+Aggregate matched signals into one numeric value
+
+Algorithms support "weighted_sum"
+
+- Mappings
+
+Turn that numeric value into named projection outputs, and can be directly used by desisions.
+
+Algorithms support "threshold_bands" and "sigmoid_distance".
+
+
+
+Take the following YAML configuration file for example:
+
+```yaml
+routing:
+  signals:
+    embeddings:
+      - name: technical_support
+        threshold: 0.75
+        candidates: ["installation guide", "troubleshooting"]
+      - name: account_management
+        threshold: 0.72
+        candidates: ["billing issue", "subscription change"]
+    context:
+      - name: long_context
+        min_tokens: "4000"
+        max_tokens: "200000"
+
+  projections:
+    partitions:
+      - name: support_intents
+        semantics: exclusive
+        members: [technical_support, account_management]
+        default: technical_support
+
+    scores:
+      - name: request_difficulty
+        method: weighted_sum
+        inputs:
+          - type: embedding
+            name: technical_support
+            weight: 0.18
+            value_source: confidence
+          - type: context
+            name: long_context
+            weight: 0.18
+
+    mappings:
+      - name: request_band
+        source: request_difficulty
+        method: threshold_bands
+        outputs:
+          - name: support_fast
+            lt: 0.25
+          - name: support_escalated
+            gte: 0.25
+```
+
+ And finally mapping outputs names of  "support_fast" and "support_escalated" can be referenced in decision engines.
+
 #### Routing Context
 
 A routing context is the canonical object used by semantic routing.
 
-| Routing Context Class           | Major fields                                                                                                  | Purpose                                                    |
-| ------------------------------- | ------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
-| Request Content                 | messages, prompt text, system instructions, tool requirements, multimodal metadata, output format requirement | Describe what the request is asking for                    |
-| Control Metadata                | `model`, `routing_hint`, `route_override`, `preference`, `input_tokens_estimate`, debug flags                 | Express caller routing intent or optimization hints        |
-| Identity and Governance Context | tenant identity, user class, authorization scope, privacy tags, compliance tags, provider restrictions        | Constrain what the caller is allowed to use                |
-| Session Context                 | `session_id`, previous route class or target pool, continuity preference, escalation history                  | Preserve continuity across multiple turns when appropriate |
+| Routing Context Class           | Major fields                                                                                                  | Purpose                                             |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
+| Request Content                 | messages, prompt text, system instructions, tool requirements, multimodal metadata, output format requirement | Describe what the request is asking for             |
+| Control Metadata                | `model`, `routing_hint`, `route_override`, `preference`, `input_tokens_estimate`, debug flags                 | Express caller routing intent or optimization hints |
+| Identity and Governance Context | tenant identity, user class, authorization scope, privacy tags, compliance tags, provider restrictions        | Constrain what the caller is allowed to use         |
 
 #### Model Card
 
@@ -136,20 +233,10 @@ The module boundary consists of four major objects:
 
 | Object            | Owned by          | Major fields                                                                                                           | Purpose                                    |
 | ----------------- | ----------------- | ---------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
-| Request           | Client or gateway | prompt, messages, metadata, identity, session                                                                          | Original request entering semantic routing |
+| Request           | Client or gateway | prompt, messages, metadata, identity                                                                                   | Original request entering semantic routing |
 | RouteDecision     | Semantic Router   | `route_class`, `target_pool`, `model_family`, `safety_profile`, `cache_policy`, `routing_confidence`, `fallback_pools` | Formal SR to LB handoff contract           |
 | SchedulingContext | Load Balancer     | pool members, health, load, latency, locality, admission status                                                        | Runtime scheduling state owned by LB only  |
 | DispatchResult    | Load Balancer     | selected endpoint, replica, region, dispatch reason                                                                    | Final execution result after scheduling    |
-
-#### Signal Set
-
-A signal is a typed routing feature extracted from the request context.
-
-Depending on deployment requirements, ASE Semantic Router MAY use keyword, embedding, domain, language, complexity, context, modality, preference, authorization, jailbreak, and PII signals. Not every deployment requires every signal family, and not every request requires every extractor to run.
-
-#### Session Continuity Metadata
-
-Session continuity metadata MAY include `session_id`, the previous route class or target pool, the last escalation reason, a continuity preference, and conversation history. It is an optimization input rather than a hard override and MUST NOT bypass hard capability or policy constraints.
 
 ### Request Normalization
 
@@ -165,16 +252,9 @@ ASE Semantic Router SHOULD support the following semantic-routing-aware controls
 | `route_override`         | Request a specific capability path or target-pool alias                         | Restricted to authorized callers                                                      |
 | `preference`             | Express latency, cost or quality bias                                           | Optimization input only                                                               |
 | `input_tokens_estimate`  | Provide a caller-side prompt-size estimate                                      | Advisory signal only                                                                  |
-| `session_id`             | Preserve multi-turn continuity context                                          | Optional unless continuity policy requires it                                         |
 | `debug` or `explain`     | Request routing diagnostics                                                     | Restricted and redacted for trusted callers only                                      |
 
-The precedence order MUST be explicit. Hard capability and policy constraints are evaluated first, authorized explicit model requests or route overrides second, and continuity or optimization preferences only after eligibility is established. ASE SHOULD route at request granularity rather than pinning an entire session to one pool.
-
-### Signal Extraction Layer
-
-The signal extraction layer SHOULD compute cheap signals first, invoke expensive extractors only when they materially affect the decision, keep outputs explicit and typed, and avoid hidden heuristic logic in the request path. Supporting modules MAY include an embedding service, classifier service, token estimator, jailbreak detector, PII detector, tool catalog, and semantic cache. These services are subordinate to the routing pipeline; the explicit signal set remains the source of truth for semantic decisions.
-
-Within `routing.decisions`, `modelRefs` remains the canonical upstream configuration term. In ASE split mode, `modelRefs` is an input to semantic route selection, while `RouteDecision.target_pool` is the primary output consumed by ASE LLM Load Balancer.
+The precedence order MUST be explicit. Hard capability and policy constraints are evaluated first, authorized explicit model requests or route overrides second, and continuity or optimization preferences only after eligibility is established.
 
 ### Hard Constraint and Policy Filter
 
@@ -218,7 +298,7 @@ flowchart LR
     G -- Yes --> R[Emit RouteDecision]
 ```
 
-In this flow, the hard-filter stage has already removed infeasible candidates. The decision engine then combines normalized request context, extracted signals, the matched `routing.decisions` rule, the remaining legal candidate pools or `modelRefs`, and any applicable caller or session preferences into a bounded ranking problem. Continuity handling and tie-break rules MAY influence which legal candidate is selected, but they MUST operate only within the feasible route space.
+In this flow, the hard-filter stage has already removed infeasible candidates. The decision engine then combines normalized request context, extracted signals, the matched `routing.decisions` rule, the remaining legal candidate pools or `modelRefs`, and any applicable caller into a bounded ranking problem. Continuity handling and tie-break rules MAY influence which legal candidate is selected, but they MUST operate only within the feasible route space.
 
 Supported route-selection strategies MAY include static priority, quality-first selection, cost-aware selection, latency-aware selection based on model-level attributes, and hybrid policy-aware ranking.
 
@@ -316,7 +396,6 @@ The module then emits a formal `RouteDecision` plus any compatibility fields req
 | `route_reason`                    | Optional          | Preserve operator-readable routing rationale                               |
 | `policy_tags`                     | Optional          | Carry governance annotations that may matter downstream                    |
 | `debug_trace_id`                  | Optional          | Correlate routing decisions with trace and logs                            |
-| `continuity_metadata`             | Optional          | Preserve session-related context                                           |
 | `model` or projected route header | Optional          | Compatibility field only; not the sole dispatch contract in ASE split mode |
 
 At a minimum, every emitted `RouteDecision` MUST include `route_class`, `target_pool`, `request_id`, and `route_decision_status`. Optional fields MAY be omitted when not applicable or when withheld by policy.
