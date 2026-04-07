@@ -40,9 +40,17 @@ The `Decision Engine` consumes the outputs of `Signals` and `Projections` togeth
 
 ## Signals
 
-Signals can be classified into two catogories:
+`Signals` is the detection layer of routing. It defines named detectors under `routing.signals`, while `routing.decisions` references those names so request understanding remains reusable and route logic remains readable. In this design, signals answer "what did we detect?" rather than "what route should we take?".
 
-- Heuristic Signals
+This layer exists to avoid inlining detection logic into every decision rule. Without signals, lexical matching, policy checks, semantic classification, and safety detection would be duplicated across route rules, making configuration harder to review, audit, and evolve. With named signals, one decision can combine lexical, identity, semantic, and safety evidence while keeping route outcomes separate from detection.
+
+Signals SHOULD be used when multiple routes need the same detector, when one route must combine different extraction styles, or when the configuration needs a clean boundary between detection, decision logic, algorithms, and plugins. Cross-signal coordination and derived routing bands do not belong in `routing.signals`; exclusive partitions, weighted score aggregation, and named routing bands belong in `routing.projections`.
+
+Signals are grouped by extraction style so that runtime cost and dependency assumptions remain explicit.
+
+### Heuristic Signals
+
+Heuristic signals route from explicit rules, request form, identity metadata, or lightweight detectors without depending on router-owned classifier models.
 
 | Signal family | Purpose                                                                      |
 | ------------- | ---------------------------------------------------------------------------- |
@@ -52,7 +60,9 @@ Signals can be classified into two catogories:
 | `language`    | route by detected request language                                           |
 | `structure`   | route from request shape such as question counts or ordered workflow markers |
 
-- Learned Signals
+### Learned Signals
+
+Learned signals use embeddings or classifier-style detectors and typically rely on router-owned model assets or maintained detector modules.
 
 | Signal family   | Purpose                                                         |
 | --------------- | --------------------------------------------------------------- |
@@ -67,6 +77,14 @@ Signals can be classified into two catogories:
 | `reask`         | detect repeated user questions as implicit dissatisfaction      |
 | `kb`            | bind knowledge base labels or groups into named routing signals |
 | `user-feedback` | detect correction or escalation feedback                        |
+
+The following design rules SHOULD hold for this section of the routing graph:
+
+- Signals SHOULD remain named and reusable across multiple decisions.
+- Signals SHOULD remain detection-only; route outcomes belong in `routing.decisions`.
+- Cross-signal partitions and derived routing bands SHOULD live in `routing.projections`, not back inside `routing.signals`.
+- Model choice SHOULD remain separate from signals and belong in the algorithm layer.
+- Route-side behavior SHOULD remain separate from signals and belong in plugins.
 
 ## Projections
 
