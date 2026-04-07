@@ -29,20 +29,16 @@ In this document, Semantic Router refers to the stage that selects a legal capab
 
 # System Architecture
 
-## ASE Semantic Router Block Diagram
+The ASE Semantic Router is organized as a semantic decision pipeline that transforms an inbound LLM request into a pool-level routing decision before any backend scheduling begins. After request normalization, the request enters the `Signals` stage, where heuristic and learned detectors extract routing evidence such as domain, modality, complexity, safety posture, user intent, and governance constraints. Those raw signals are then consolidated by `Projections` into canonical partitions, scores, and named mappings so that downstream decision logic can evaluate requests against a stable semantic feature set instead of ad hoc prompt text.
 
-The semantic router processing logic as below:
+At the center of the architecture, the `Decision Engine` performs decision matching against configured `Rules and Policies` and produces the explainable route that is handed to ASE LLM Load Balancer. The engine MAY invoke `Decision Plugins` to apply capability-specific behaviors such as image-generation handling, system-prompt shaping, tool activation, or header/body mutation, and it MAY use `Selector Plugins` such as static, AutoMix, Elo, Router DC, hybrid, latency-aware, or KNN strategies to choose among eligible model families or target pools. `Loopers` such as confidence, rating, and ReMoM provide a closed feedback path for route-quality refinement over time. This separation keeps semantic interpretation, governance, and model-family selection inside the router, while ASE LLM Load Balancer remains responsible for endpoint-level scheduling, health-aware balancing, and dispatch.
 
 <div align="center">
 <img src="./assets/ase_semantic_router.svg" alt="ASE Semantic Router Block Diagram" width="1000"/>
 </div>
 
-The following flows describe the stages owned by ASE Semantic Router. 
 
-
-# Design Modules
-
-#### Signals
+## Signals
 
 Signals can be classified into two catogories:
 
@@ -72,7 +68,7 @@ Signals can be classified into two catogories:
 | `kb`            | bind knowledge base labels or groups into named routing signals |
 | `user-feedback` | detect correction or escalation feedback                        |
 
-#### Projections
+## Projections
 
 Projections is the coordination layer between raw signal detection and final decision matching.
 
@@ -147,7 +143,7 @@ routing:
 
  And finally mapping outputs names of  "support_fast" and "support_escalated" can be referenced in decision engines.
 
-#### Routing Context
+## Routing Context
 
 A routing context is the canonical object used by semantic routing.
 
@@ -157,7 +153,7 @@ A routing context is the canonical object used by semantic routing.
 | Control Metadata                | `model`, `routing_hint`, `route_override`, `preference`, `input_tokens_estimate`, debug flags                 | Express caller routing intent or optimization hints |
 | Identity and Governance Context | tenant identity, user class, authorization scope, privacy tags, compliance tags, provider restrictions        | Constrain what the caller is allowed to use         |
 
-#### Model Card
+## Model Card
 
 A model card is the route-visible model-family definition used by semantic routing to derive a pool decision.
 
@@ -165,7 +161,7 @@ Each routable semantic entry or model family SHOULD expose an identifier, capabi
 
 A semantic entry or model family is not a concrete backend endpoint. A target pool MAY map to multiple provider models and downstream replicas, while endpoint health and queue metrics remain outside the ownership of model cards.
 
-#### Decision Rule
+## Decision Rule
 
 A decision rule is the semantic route rule defined in `routing.decisions`.
 
